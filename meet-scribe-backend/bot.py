@@ -50,12 +50,23 @@ def main():
     }
     options.add_experimental_option("prefs", prefs)
     
+    # Determine Chrome/Chromium executable path dynamically
+    chrome_path = os.environ.get('PUPPETEER_EXECUTABLE_PATH')
+    if not chrome_path:
+        import platform
+        system = platform.system()
+        if system == "Darwin":
+            chrome_path = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+        elif system == "Windows":
+            chrome_path = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
+        else:
+            chrome_path = "/usr/bin/chromium"
+
     try:
         driver = uc.Chrome(
             options=options, 
             user_data_dir=profile_dir,
-            version_main=146,
-            browser_executable_path="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+            browser_executable_path=chrome_path
         )
     except Exception as e:
         emit("error", f"Chrome launch failed: {str(e)}")
