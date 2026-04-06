@@ -3,12 +3,13 @@ import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'demo-api-key',
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'demo.firebaseapp.com',
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'demo-project',
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 'demo.appspot.com',
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '000000000000',
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || '1:000:web:000',
+  apiKey: "AIzaSyDHJQHC2tQrUVsSURpD-HvRv_y5jz_pcXE",
+  authDomain: "meetscribe-45727.firebaseapp.com",
+  projectId: "meetscribe-45727",
+  storageBucket: "meetscribe-45727.firebasestorage.app",
+  messagingSenderId: "1031636948357",
+  appId: "1:1031636948357:web:dbb9b97860eff6c986e0ec",
+  measurementId: "G-8RCFDMWXV2"
 };
 
 const app = initializeApp(firebaseConfig);
