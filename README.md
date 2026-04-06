@@ -1,5 +1,8 @@
 # 🤖 Google Meet AI Scribe
 
+**Live Demo**: [https://meet-scribe.netlify.app](https://meet-scribe.netlify.app)
+*(Features real Firebase Authentication and AI summarizations via Google Gemini 2.0!)*
+
 AI-powered Google Meet transcription and summarization. Deploy a bot to join your meeting, capture the conversation in real-time, and generate intelligent summaries using Gemini AI.
 
 ## ✨ Features
@@ -84,19 +87,20 @@ Open http://localhost:5173
 3. **Puppeteer Stealth** — Anti-detection for browser automation to navigate Google Meets.
 4. **Architecture Design** — GenAI assisted with system design, component structure, and debugging across the React frontend and Express backend.
 
-## 📡 Deployment
+## 📡 Deployment (Monorepo)
 
 ### Frontend → Netlify
-1. Push `meet-scribe-frontend/` to GitHub
-2. Connect to Netlify → Auto-detects Vite
-3. Set env var: `VITE_API_URL=https://your-backend.onrender.com`
+1. Connect your GitHub repository (`Tani-sh/meet-scribe`) to Netlify.
+2. Set the **Base directory** to `meet-scribe-frontend`.
+3. Set the **Publish directory** to `meet-scribe-frontend/dist` and build command to `npm run build`.
+4. Set env var: `VITE_API_URL=https://meet-scribe-backend.onrender.com`
 
 ### Backend → Render
-1. Push `meet-scribe-backend/` to GitHub
-2. Create Web Service on Render
-3. Set env vars: `GEMINI_API_KEY`, `FRONTEND_URL`, `NODE_ENV=production`
+1. Connect your GitHub repository (`Tani-sh/meet-scribe`) to Render as a Web Service.
+2. Set the **Root Directory** to `meet-scribe-backend`.
+3. Set env vars: `GEMINI_API_KEY`, `FRONTEND_URL=https://meet-scribe.netlify.app`, `NODE_ENV=production`
 
-> **Note:** Render free tier doesn't support Puppeteer/Chrome. The hosted version uses Demo Mode. Live Mode with real Meet integration works locally.
+> **Note:** Render free tier doesn't support Puppeteer/Chrome. The hosted backend uses Demo Mode for bot deployment. Live Mode with real Meet integration works flawlessly when running the backend locally.
 
 ## 🛠️ Tech Stack
 
