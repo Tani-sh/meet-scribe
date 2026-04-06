@@ -3,6 +3,18 @@
 **Live Demo**: [https://meet-scribe.netlify.app](https://meet-scribe.netlify.app)
 *(Features real Firebase Authentication and AI summarizations via Google Gemini 2.0!)*
 
+---
+## 🎯 Instructions for Evaluators & Recruiters
+If you are reviewing this project online via the **Live Demo** link above, please follow these steps to see the AI pipeline in action:
+
+1. **Sign In**: Use any temporary email (or create an account) using the Firebase Authentication page.
+2. **Start a Session**: Click `New Session` from the Dashboard.
+3. **Use Demo Mode**: Make sure the mode toggle is set to **🎭 Demo Mode** (Green). 
+   - *Why? The backend is currently hosted on a free cloud tier (Render) which does not have the hardware capacity to launch a full Google Chrome browser for a live Google Meet scraper. Demo Mode streams a highly realistic, pre-recorded meeting transcript directly through the WebSockets, perfectly mirroring a live session so you can test the **Real-Time UI** and **Gemini AI Summarizer** without needing a local hardware setup!*
+4. **Deploy**: Click the 🤖 Deploy button and watch the real-time transcript capture! Once finished, it will automatically query the Gemini AI to generate the Executive Summary and speaker analytics.
+
+---
+
 AI-powered Google Meet transcription and summarization. Deploy a bot to join your meeting, capture the conversation in real-time, and generate intelligent summaries using Gemini AI.
 
 ## ✨ Features
