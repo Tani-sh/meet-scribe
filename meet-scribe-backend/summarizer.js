@@ -46,7 +46,7 @@ async function summarizeWithGemini(transcript) {
   const ai = getGeminiAI();
   if (!ai) throw new Error('Gemini API key not configured');
 
-  const model = ai.getGenerativeModel({ model: 'gemini-3.1-flash-lite-preview' });
+  const model = ai.getGenerativeModel({ model: 'gemini-2.0-flash' });
   const result = await model.generateContent(SUMMARY_PROMPT + transcript);
   const response = await result.response;
   return response.text();
@@ -100,7 +100,7 @@ async function summarizeTranscript(transcript) {
   let err = null;
   // 1. Try Gemini Flash (cloud, primary)
   try {
-    console.log('✨ Summarizing with Gemini 3.1 Flash Lite Preview...');
+    console.log('✨ Summarizing with Gemini 2.0 Flash...');
     const summary = await summarizeWithGemini(transcript);
     return summary;
   } catch (e) {
