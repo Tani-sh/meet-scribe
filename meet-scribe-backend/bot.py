@@ -39,10 +39,12 @@ def main():
     options.add_argument("--disable-blink-features=AutomationControlled")
     options.add_argument("--disable-notifications")
     options.add_argument("--mute-audio")
+    options.add_argument("--use-fake-ui-for-media-stream")
+    options.add_argument("--use-fake-device-for-media-stream")
     
     prefs = {
-        "profile.default_content_setting_values.media_stream_mic": 2,
-        "profile.default_content_setting_values.media_stream_camera": 2,
+        "profile.default_content_setting_values.media_stream_mic": 1,
+        "profile.default_content_setting_values.media_stream_camera": 1,
         "profile.default_content_setting_values.geolocation": 2,
         "profile.default_content_setting_values.notifications": 2
     }
