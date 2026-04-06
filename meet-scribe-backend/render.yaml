@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: meet-scribe-backend
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: FRONTEND_URL
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GCS_BUCKET_NAME
+        sync: false
