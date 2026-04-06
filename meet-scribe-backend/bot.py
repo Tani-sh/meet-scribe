@@ -35,6 +35,9 @@ def main():
                     os.remove(lock_path)
             except: pass
 
+    import platform
+    is_server = platform.system() == "Linux" or os.environ.get('NODE_ENV') == 'production'
+
     options = uc.ChromeOptions()
     options.add_argument("--disable-blink-features=AutomationControlled")
     options.add_argument("--disable-notifications")
@@ -42,6 +45,11 @@ def main():
     options.add_argument("--use-fake-ui-for-media-stream")
     options.add_argument("--use-fake-device-for-media-stream")
     
+    if is_server:
+        options.add_argument("--no-sandbox")
+        options.add_argument("--disable-dev-shm-usage")
+        options.add_argument("--disable-gpu")
+
     prefs = {
         "profile.default_content_setting_values.media_stream_mic": 1,
         "profile.default_content_setting_values.media_stream_camera": 1,
@@ -53,7 +61,6 @@ def main():
     # Determine Chrome/Chromium executable path dynamically
     chrome_path = os.environ.get('PUPPETEER_EXECUTABLE_PATH')
     if not chrome_path:
-        import platform
         system = platform.system()
         if system == "Darwin":
             chrome_path = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
@@ -66,7 +73,8 @@ def main():
         driver = uc.Chrome(
             options=options, 
             user_data_dir=profile_dir,
-            browser_executable_path=chrome_path
+            browser_executable_path=chrome_path,
+            headless=is_server
         )
     except Exception as e:
         emit("error", f"Chrome launch failed: {str(e)}")
