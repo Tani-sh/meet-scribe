@@ -8,13 +8,20 @@ const path = require('path');
 async function joinMeet(meetUrl, callbacks = {}) {
   const { onStatus, onTranscript, onError, onEnd } = callbacks;
 
-  const pythonExec = path.join(__dirname, 'venv', 'bin', 'python3');
+  const isWindows = process.platform === 'win32';
+  const pythonExec = path.join(__dirname, 'venv', isWindows ? 'Scripts' : 'bin', isWindows ? 'python.exe' : 'python3');
   const botScript = path.join(__dirname, 'bot.py');
 
   console.log(`🚀 Launching Python Bot for ${meetUrl}`);
   onStatus?.('launching');
 
   const child = spawn(pythonExec, [botScript, '--url', meetUrl]);
+  
+  child.on('error', (err) => {
+    console.error(`[Spawn Error] Failed to start python:`, err);
+    onError?.(`Local Server Error: Failed to start python. Are you sure the virtual environment exists at /venv? (${err.message})`);
+    onEnd?.();
+  });
 
   let stdoutBuffer = '';
 
