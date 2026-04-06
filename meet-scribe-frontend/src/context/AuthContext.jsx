@@ -4,10 +4,9 @@ import { auth } from '../firebase';
 
 const AuthContext = createContext(null);
 
-// Demo mode: skip Firebase if no valid config is provided
+// Demo mode: permanently disabled for final real-world testing
 const isDemoMode = () => {
-  const key = import.meta.env.VITE_FIREBASE_API_KEY;
-  return !key || key === 'your_firebase_api_key' || key === 'demo-api-key';
+  return false;
 };
 
 const DEMO_USER = {
