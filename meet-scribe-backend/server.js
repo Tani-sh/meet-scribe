@@ -211,7 +211,7 @@ server.listen(PORT, () => {
 ║   🤖 Meet Scribe Backend                 ║
 ║   Running on http://localhost:${PORT}        ║
 ║                                           ║
-║   AI: Ollama (local) → Gemini (fallback)  ║
+║   AI Engine: Gemini 2.0 Flash             ║
 ╚═══════════════════════════════════════════╝
   `);
 });
