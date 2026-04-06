@@ -96,6 +96,23 @@ export default function NewSession() {
       </div>
 
       <div className="glass-card" style={{ maxWidth: '700px' }}>
+        {/* Evaluator Instructions */}
+        <div style={{
+          padding: '16px',
+          background: 'rgba(255, 193, 7, 0.1)',
+          border: '1px solid rgba(255, 193, 7, 0.3)',
+          borderRadius: '8px',
+          marginBottom: '24px',
+          color: '#ffca28'
+        }}>
+          <h4 style={{ margin: '0 0 8px 0', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            ⚠️ Evaluator Instructions
+          </h4>
+          <p style={{ margin: 0, fontSize: '0.85rem', lineHeight: '1.4' }}>
+            Since this project is currently deployed on a free cloud tier without Google Chrome installed, <strong>Live Mode will crash</strong>. Please ensure the <strong>Demo Mode toggle is green</strong> below to test the real-time WebSocket connection and Gemini AI Summarization pipelines without hardware timeouts!
+          </p>
+        </div>
+
         {/* URL Input */}
         <div className="input-group" style={{ marginBottom: '24px' }}>
           <label htmlFor="meetUrl">Google Meet URL</label>
