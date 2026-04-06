@@ -17,6 +17,9 @@ RUN apt-get update && apt-get install -y \
   libxdamage1 \
   libxrandr2 \
   xdg-utils \
+  python3 \
+  python3-venv \
+  python3-pip \
   --no-install-recommends && \
   apt-get clean && rm -rf /var/lib/apt/lists/*
 
@@ -26,8 +29,16 @@ ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
 WORKDIR /app
 
+# Configure Python Virtual Environment
+RUN python3 -m venv /app/venv
+ENV PATH="/app/venv/bin:$PATH"
+
 COPY package*.json ./
 RUN npm ci --omit=dev
+
+# Install Python dependencies
+COPY requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
