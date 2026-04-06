@@ -69,11 +69,23 @@ def main():
         else:
             chrome_path = "/usr/bin/chromium"
 
+    version_main = 146
+    try:
+        import subprocess, re
+        cmd_path = chrome_path if chrome_path else "google-chrome"
+        output = subprocess.check_output([cmd_path, '--version']).decode('utf-8')
+        match = re.search(r'(\d+)', output)
+        if match:
+            version_main = int(match.group(1))
+    except Exception:
+        pass
+
     try:
         driver = uc.Chrome(
             options=options, 
             user_data_dir=profile_dir,
             browser_executable_path=chrome_path,
+            version_main=version_main,
             headless=is_server
         )
     except Exception as e:
