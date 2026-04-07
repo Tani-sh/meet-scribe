@@ -26,7 +26,7 @@ async function joinMeet(meetUrl, callbacks = {}) {
     emit('status', 'launching');
 
     browser = await puppeteer.launch({
-      headless: isServer ? 'new' : false,
+      headless: false,
       executablePath: execPath,
       args: [
         '--no-sandbox',

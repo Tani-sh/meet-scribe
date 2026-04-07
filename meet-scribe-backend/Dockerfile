@@ -3,6 +3,7 @@ FROM node:18-slim
 # Install Chromium and dependencies
 RUN apt-get update && apt-get install -y \
   chromium \
+  xvfb \
   fonts-liberation \
   libasound2 \
   libatk-bridge2.0-0 \
@@ -36,4 +37,4 @@ RUN mkdir -p data/transcripts data/summaries
 
 EXPOSE 3001
 
-CMD ["node", "server.js"]
+CMD ["xvfb-run", "--auto-servernum", "--server-args=-screen 0 1280x720x24", "node", "server.js"]
