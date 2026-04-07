@@ -112,69 +112,70 @@ async function joinMeet(meetUrl, callbacks = {}) {
     await clickAriaLabel(page, 'Turn off microphone');
     await clickAriaLabel(page, 'Turn off camera');
 
-    // ── Fill name ────────────────────────────────────────────────────────
-    emit('status', 'filling name');
+    // ── Wait for the 'Getting ready...' spinner to finish (up to 60s) ──
+    emit('status', 'waiting for Google Meet to initialize... (can take 30s)');
+    
+    let joined = null;
     let nameFilled = false;
-    try {
-      // Wait for *any* visible text input (the "Your name" field)
-      await page.waitForSelector('input[type="text"]', { visible: true, timeout: 5000 });
-      nameFilled = await page.evaluate(() => {
-        const inputs = document.querySelectorAll('input[type="text"]');
-        for (const inp of inputs) {
-          if (inp.offsetParent !== null) { // visible check
-            inp.focus();
-            inp.value = '';
-            inp.value = 'AI Notetaker';
-            inp.dispatchEvent(new Event('input', { bubbles: true }));
-            return true;
+
+    // Poll every 2 seconds for a maximum of 60 seconds (30 attempts)
+    for (let attempt = 0; attempt < 30; attempt++) {
+      if (!nameFilled) {
+        nameFilled = await page.evaluate(() => {
+          const inputs = document.querySelectorAll('input[type="text"]');
+          for (const inp of inputs) {
+            if (inp.offsetParent !== null) { // visible check
+              inp.focus();
+              inp.value = '';
+              inp.value = 'AI Notetaker';
+              inp.dispatchEvent(new Event('input', { bubbles: true }));
+              return true;
+            }
           }
-        }
-        return false;
-      });
-    } catch (e) {
-      console.log('[Bot] No name input found, might already be signed in');
-    }
-
-    await sleep(2000); // let React re-enable the join button
-
-    // ── Click Join / Ask to Join ──────────────────────────────────────────
-    emit('status', 'joining');
-    const joined = await page.evaluate(() => {
-      const targets = [
-        'Ask to join',
-        'Join now',
-        'Join meeting',
-        'Join call',
-        'Join',
-      ];
-      // Collect all buttons and spans
-      const els = [...document.querySelectorAll('button, span')];
-      for (const el of els) {
-        if (el.offsetParent === null) continue; // skip hidden
-        const txt = (el.textContent || '').trim().toLowerCase();
-        if (txt === 'ask to join' || txt === 'join now' || txt === 'join meeting' || txt === 'join call') {
-          el.click();
-          return txt;
+          return false;
+        });
+        if (nameFilled) {
+          console.log('[Bot] Filled custom name');
+          await sleep(1000); // Wait a second for React to enable the join button
         }
       }
-      return null;
-    });
 
-    if (joined) {
-      console.log(`[Bot] Clicked: "${joined}"`);
-    } else if (nameFilled) {
-      console.log('[Bot] No join button found, pressing Enter as fallback');
-      await page.keyboard.press('Enter');
-    } else {
-      console.log('[Bot] Failed to find join button. Taking screenshot...');
-      const fs = require('fs');
-      if (!fs.existsSync('public')) fs.mkdirSync('public');
-      await page.screenshot({ path: 'public/screenshot.png', fullPage: true });
-      console.log('[Bot] Saved screenshot to public/screenshot.png');
-      emit('error', 'Could not find join button. Is the Meet link valid?');
-      await browser.close();
-      onEnd?.();
-      return;
+      joined = await page.evaluate(() => {
+        const els = [...document.querySelectorAll('button, span')];
+        for (const el of els) {
+          if (el.offsetParent === null) continue; // skip hidden
+          const txt = (el.textContent || '').trim().toLowerCase();
+          if (txt === 'ask to join' || txt === 'join now' || txt === 'join meeting' || txt === 'join call') {
+            el.click();
+            return txt;
+          }
+        }
+        return null; // not found yet
+      });
+
+      if (joined) {
+        console.log(`[Bot] Clicked: "${joined}"`);
+        break; // Successfully clicked, exit polling loop
+      }
+      
+      await sleep(2000); // 2 second interval
+    }
+
+    if (!joined) {
+      if (nameFilled) {
+        console.log('[Bot] No join button found, pressing Enter as fallback');
+        await page.keyboard.press('Enter');
+      } else {
+        console.log('[Bot] Failed to find join button after 60 seconds. Taking screenshot...');
+        const fs = require('fs');
+        if (!fs.existsSync('public')) fs.mkdirSync('public');
+        await page.screenshot({ path: 'public/screenshot.png', fullPage: true });
+        console.log('[Bot] Saved screenshot to public/screenshot.png');
+        emit('error', 'Could not find join button. Is the Meet link valid?');
+        await browser.close();
+        onEnd?.();
+        return;
+      }
     }
 
     // ── Wait to be admitted ──────────────────────────────────────────────
