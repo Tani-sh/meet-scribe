@@ -140,13 +140,12 @@ async function joinMeet(meetUrl, callbacks = {}) {
       ];
       // Collect all buttons and spans
       const els = [...document.querySelectorAll('button, span')];
-      for (const label of targets) {
-        for (const el of els) {
-          const txt = (el.textContent || '').trim();
-          if (txt === label && el.offsetParent !== null) {
-            el.click();
-            return label;
-          }
+      for (const el of els) {
+        if (el.offsetParent === null) continue; // skip hidden
+        const txt = (el.textContent || '').trim().toLowerCase();
+        if (txt === 'ask to join' || txt === 'join now' || txt === 'join meeting' || txt === 'join call') {
+          el.click();
+          return txt;
         }
       }
       return null;
@@ -158,6 +157,11 @@ async function joinMeet(meetUrl, callbacks = {}) {
       console.log('[Bot] No join button found, pressing Enter as fallback');
       await page.keyboard.press('Enter');
     } else {
+      console.log('[Bot] Failed to find join button. Taking screenshot...');
+      const fs = require('fs');
+      if (!fs.existsSync('public')) fs.mkdirSync('public');
+      await page.screenshot({ path: 'public/screenshot.png', fullPage: true });
+      console.log('[Bot] Saved screenshot to public/screenshot.png');
       emit('error', 'Could not find join button. Is the Meet link valid?');
       await browser.close();
       onEnd?.();
