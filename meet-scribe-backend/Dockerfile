@@ -1,6 +1,6 @@
 FROM node:18-slim
 
-# Install Chromium and dependencies for Puppeteer
+# Install Chromium and dependencies
 RUN apt-get update && apt-get install -y \
   chromium \
   fonts-liberation \
@@ -17,28 +17,17 @@ RUN apt-get update && apt-get install -y \
   libxdamage1 \
   libxrandr2 \
   xdg-utils \
-  python3 \
-  python3-venv \
-  python3-pip \
   --no-install-recommends && \
   apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Tell Puppeteer to use installed Chromium
+# Tell Puppeteer to use the system Chromium
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
 WORKDIR /app
 
-# Configure Python Virtual Environment
-RUN python3 -m venv /app/venv
-ENV PATH="/app/venv/bin:$PATH"
-
 COPY package*.json ./
 RUN npm ci --omit=dev
-
-# Install Python dependencies
-COPY requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
