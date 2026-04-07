@@ -24,19 +24,20 @@ async function joinMeet(meetUrl, callbacks = {}) {
 
   try {
     emit('status', 'launching');
+    const fs = require('fs');
+    const path = require('path');
+    if (!fs.existsSync('public')) fs.mkdirSync('public', { recursive: true });
 
     browser = await puppeteer.launch({
       headless: 'new',
       executablePath: execPath,
       args: [
-        '--headless=new',
         '--no-sandbox',
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage',
         '--use-fake-ui-for-media-stream',
         '--use-fake-device-for-media-stream',
         '--disable-gpu',
-        '--disable-extensions',
         '--js-flags=--max-old-space-size=256',
         '--mute-audio',
         '--window-size=1280,720',
@@ -53,8 +54,11 @@ async function joinMeet(meetUrl, callbacks = {}) {
 
     const page = await browser.newPage();
     
-    // ── Spoof User Agent to exactly match the Mac Chrome we exported cookies from ──
-    await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36');
+    // ── Use actual Chrome version for UA (to avoid cookie/UA mismatch) ────
+    const fullVersion = await browser.version(); // e.g. "HeadlessChrome/120.0.6099.109"
+    const chromeVersion = fullVersion.split('/')[1] || '123.0.0.0';
+    await page.setUserAgent(`Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeVersion} Safari/537.36`);
+
     await page.setExtraHTTPHeaders({
       'Accept-Language': 'en-US,en;q=0.9',
     });
@@ -73,8 +77,6 @@ async function joinMeet(meetUrl, callbacks = {}) {
       }
 
       // Priority 2: local file (for development)
-      const fs = require('fs');
-      const path = require('path');
       if (!cookies) {
         const cookiePath = path.join(__dirname, 'google-cookies.json');
         if (fs.existsSync(cookiePath)) {
@@ -126,10 +128,11 @@ async function joinMeet(meetUrl, callbacks = {}) {
         nameFilled = await page.evaluate(() => {
           const inputs = document.querySelectorAll('input[type="text"]');
           for (const inp of inputs) {
-            if (inp.offsetParent !== null) { // visible check
-              inp.focus();
-              inp.value = '';
-              inp.value = 'AI Notetaker';
+            const rect = inp.getBoundingClientRect();
+            if (rect.width > 0 && rect.height > 0) { // headless-safe visibility
+              // Use native setter to trigger React state update
+              const nativeValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+              nativeValueSetter.call(inp, 'AI Notetaker');
               inp.dispatchEvent(new Event('input', { bubbles: true }));
               return true;
             }
@@ -145,7 +148,8 @@ async function joinMeet(meetUrl, callbacks = {}) {
       joined = await page.evaluate(() => {
         const els = [...document.querySelectorAll('button, span')];
         for (const el of els) {
-          if (el.offsetParent === null) continue; // skip hidden
+          const rect = el.getBoundingClientRect();
+          if (rect.width === 0 || rect.height === 0) continue; // skip hidden
           const txt = (el.textContent || '').trim().toLowerCase();
           if (txt === 'ask to join' || txt === 'join now' || txt === 'join meeting' || txt === 'join call') {
             (el.closest?.('button') || el).click();
@@ -169,8 +173,6 @@ async function joinMeet(meetUrl, callbacks = {}) {
         await page.keyboard.press('Enter');
       } else {
         console.log('[Bot] Failed to find join button after 60 seconds. Taking screenshot...');
-        const fs = require('fs');
-        if (!fs.existsSync('public')) fs.mkdirSync('public');
         await page.screenshot({ path: 'public/screenshot.png', fullPage: true });
         console.log('[Bot] Saved screenshot to public/screenshot.png');
         emit('error', 'Could not find join button. Is the Meet link valid?');
@@ -187,7 +189,9 @@ async function joinMeet(meetUrl, callbacks = {}) {
       // Check for "Leave call" button WITHOUT clicking it
       const hasLeave = await page.evaluate(() => {
         const btn = document.querySelector('button[aria-label*="Leave call"]');
-        return btn !== null && btn.offsetParent !== null;
+        if (!btn) return false;
+        const rect = btn.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0;
       });
       if (hasLeave) {
         inCall = true;
@@ -344,7 +348,8 @@ async function dismissByText(page, labels) {
       for (const label of labels) {
         for (const el of els) {
           const txt = (el.textContent || '').trim();
-          if (txt === label && el.offsetParent !== null) {
+          const rect = el.getBoundingClientRect();
+          if (txt === label && rect.width > 0 && rect.height > 0) {
             (el.closest?.('button') || el).click();
             break;
           }
@@ -362,7 +367,8 @@ async function clickAriaLabel(page, partialLabel) {
       const btns = document.querySelectorAll('button');
       for (const b of btns) {
         const al = (b.getAttribute('aria-label') || '').toLowerCase();
-        if (al.includes(label.toLowerCase()) && b.offsetParent !== null) {
+        const rect = b.getBoundingClientRect();
+        if (al.includes(label.toLowerCase()) && rect.width > 0 && rect.height > 0) {
           b.click();
           break;
         }
