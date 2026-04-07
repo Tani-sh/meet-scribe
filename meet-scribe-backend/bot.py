@@ -50,17 +50,11 @@ def main():
         options.add_argument("--disable-dev-shm-usage")
         options.add_argument("--disable-gpu")
         
-        # Aggressive memory saving flags for 512MB limit
+        # Moderate memory saving flags for 512MB limit (preserving Meet functionality)
         options.add_argument("--disable-extensions")
-        options.add_argument("--disable-software-rasterizer")
-        options.add_argument("--disable-background-networking")
         options.add_argument("--disable-default-apps")
         options.add_argument("--disable-sync")
-        options.add_argument("--disable-translate")
-        options.add_argument("--metrics-recording-only")
         options.add_argument("--no-first-run")
-        options.add_argument("--safebrowsing-disable-auto-update")
-        options.add_argument("--blink-settings=imagesEnabled=false") # Block image loading
         options.add_argument("--js-flags=--max-old-space-size=256") # Cap V8 engine RAM
 
     prefs = {
