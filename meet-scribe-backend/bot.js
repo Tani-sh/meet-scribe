@@ -53,6 +53,39 @@ async function joinMeet(meetUrl, callbacks = {}) {
     const page = await browser.newPage();
     await page.setViewport({ width: 1280, height: 720 });
 
+    // ── Load Google session cookies (critical for cloud deployment) ───────
+    let cookiesLoaded = false;
+    try {
+      let cookies = null;
+
+      // Priority 1: GOOGLE_COOKIES env var (for Render)
+      if (process.env.GOOGLE_COOKIES) {
+        cookies = JSON.parse(process.env.GOOGLE_COOKIES);
+        console.log('[Bot] Loading cookies from GOOGLE_COOKIES env var');
+      }
+
+      // Priority 2: local file (for development)
+      const fs = require('fs');
+      const path = require('path');
+      if (!cookies) {
+        const cookiePath = path.join(__dirname, 'google-cookies.json');
+        if (fs.existsSync(cookiePath)) {
+          cookies = JSON.parse(fs.readFileSync(cookiePath, 'utf8'));
+          console.log('[Bot] Loading cookies from google-cookies.json');
+        }
+      }
+
+      if (cookies && cookies.length > 0) {
+        await page.setCookie(...cookies);
+        cookiesLoaded = true;
+        console.log(`[Bot] ✅ Loaded ${cookies.length} Google session cookies`);
+      } else {
+        console.log('[Bot] ⚠️  No Google cookies found — joining as anonymous guest');
+      }
+    } catch (e) {
+      console.error('[Bot] Cookie loading error:', e.message);
+    }
+
     // ── Navigate ─────────────────────────────────────────────────────────
     emit('status', 'navigating');
     await page.goto(meetUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
