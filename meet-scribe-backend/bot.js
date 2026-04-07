@@ -51,6 +51,13 @@ async function joinMeet(meetUrl, callbacks = {}) {
     ]);
 
     const page = await browser.newPage();
+    
+    // ── Spoof User Agent to exactly match the Mac Chrome we exported cookies from ──
+    await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36');
+    await page.setExtraHTTPHeaders({
+      'Accept-Language': 'en-US,en;q=0.9',
+    });
+    
     await page.setViewport({ width: 1280, height: 720 });
 
     // ── Load Google session cookies (critical for cloud deployment) ───────
@@ -76,6 +83,8 @@ async function joinMeet(meetUrl, callbacks = {}) {
       }
 
       if (cookies && cookies.length > 0) {
+        // Must be on a google domain before setting cookies so Chrome doesn't throw them out
+        await page.goto('https://google.com', { waitUntil: 'domcontentloaded' });
         await page.setCookie(...cookies);
         cookiesLoaded = true;
         console.log(`[Bot] ✅ Loaded ${cookies.length} Google session cookies`);
