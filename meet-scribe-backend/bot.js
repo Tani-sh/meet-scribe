@@ -69,7 +69,7 @@ async function joinMeet(meetUrl, callbacks = {}) {
     await page.setRequestInterception(true);
     page.on('request', (req) => {
       const resourceType = req.resourceType();
-      if (['image', 'stylesheet', 'font', 'media'].includes(resourceType)) {
+      if (['image', 'font', 'media'].includes(resourceType)) {
         req.abort();
       } else {
         req.continue();
@@ -171,8 +171,16 @@ async function joinMeet(meetUrl, callbacks = {}) {
         const els = [...document.querySelectorAll('button, span')];
         for (const el of els) {
           const rect = el.getBoundingClientRect();
-          if (rect.width === 0 || rect.height === 0) continue; // skip hidden
           const txt = (el.textContent || '').trim().toLowerCase();
+          
+          if (rect.width === 0 || rect.height === 0) {
+            // Detailed log for potential button layout issues
+            if (txt.includes('join') || txt.includes('ask')) {
+              console.log(`[Bot DEBUG] Found candidate "${txt}" but it is invisible (0x0).`);
+            }
+            continue;
+          }
+          
           const joinKeywords = ['ask to join', 'join now', 'join meeting', 'join call', 'ready to join', 'join'];
           if (joinKeywords.some(k => txt === k || (txt.includes(k) && txt.length < 25))) {
             (el.closest?.('button') || el).click();
