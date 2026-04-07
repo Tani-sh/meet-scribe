@@ -151,7 +151,8 @@ async function joinMeet(meetUrl, callbacks = {}) {
           const rect = el.getBoundingClientRect();
           if (rect.width === 0 || rect.height === 0) continue; // skip hidden
           const txt = (el.textContent || '').trim().toLowerCase();
-          if (txt === 'ask to join' || txt === 'join now' || txt === 'join meeting' || txt === 'join call') {
+          const joinKeywords = ['ask to join', 'join now', 'join meeting', 'join call', 'ready to join', 'join'];
+          if (joinKeywords.some(k => txt === k || (txt.includes(k) && txt.length < 25))) {
             (el.closest?.('button') || el).click();
             return txt;
           }
@@ -347,9 +348,9 @@ async function dismissByText(page, labels) {
       const els = [...document.querySelectorAll('button, span')];
       for (const label of labels) {
         for (const el of els) {
-          const txt = (el.textContent || '').trim();
+          const txt = (el.textContent || '').trim().toLowerCase();
           const rect = el.getBoundingClientRect();
-          if (txt === label && rect.width > 0 && rect.height > 0) {
+          if (labels.some(l => txt.includes(l.toLowerCase())) && rect.width > 0 && rect.height > 0) {
             (el.closest?.('button') || el).click();
             break;
           }
