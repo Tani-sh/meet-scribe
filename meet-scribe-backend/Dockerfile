@@ -37,4 +37,4 @@ RUN mkdir -p data/transcripts data/summaries
 
 EXPOSE 3001
 
-CMD xvfb-run --auto-servernum --server-args="-screen 0 1280x720x24" node server.js
+CMD Xvfb :99 -screen 0 1280x720x24 -ac -nolisten tcp & export DISPLAY=:99 && node server.js
