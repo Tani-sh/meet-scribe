@@ -43,6 +43,17 @@ async function joinMeet(meetUrl, callbacks = {}) {
         '--window-size=1280,720',
       ],
     });
+    
+    // --- RAM SAVER: Kill zombie Chrome processes ---
+    const cleanup = async () => {
+      if (browser) {
+        console.log('[Bot] Force closing browser due to process exit.');
+        try { await browser.close(); } catch (e) {}
+      }
+      process.exit();
+    };
+    process.on('SIGINT', cleanup);
+    process.on('SIGTERM', cleanup); // Render sends SIGTERM when restarting/stopping
 
     const context = browser.defaultBrowserContext();
     // overridePermissions needs an ORIGIN, not a full URL
@@ -53,7 +64,18 @@ async function joinMeet(meetUrl, callbacks = {}) {
     ]);
 
     const page = await browser.newPage();
-    
+
+    // --- RAM SAVER: Block heavy resources ---
+    await page.setRequestInterception(true);
+    page.on('request', (req) => {
+      const resourceType = req.resourceType();
+      if (['image', 'stylesheet', 'font', 'media'].includes(resourceType)) {
+        req.abort();
+      } else {
+        req.continue();
+      }
+    });
+
     // ── Use actual Chrome version for UA (to avoid cookie/UA mismatch) ────
     const fullVersion = await browser.version(); // e.g. "HeadlessChrome/120.0.6099.109"
     const chromeVersion = fullVersion.split('/')[1] || '123.0.0.0';

@@ -17,6 +17,9 @@ const { summarizeTranscript, extractSpeakerAnalytics } = require('./summarizer')
 const sessionManager = require('./sessionManager');
 const { saveTranscript, saveSummary } = require('./cloudStorage');
 
+// Concurrency guard for low-RAM server environments
+let isBotActive = false;
+
 const app = express();
 const server = http.createServer(app);
 
@@ -78,6 +81,13 @@ app.post('/api/join', async (req, res) => {
 
   if (!meetUrl) {
     return res.status(400).json({ error: 'meetUrl is required' });
+  }
+
+  // Prevent OOM by only allowing one bot at a time
+  if (isBotActive) {
+    return res.status(429).json({
+      error: 'The bot is currently in another meeting. Please try again later or upgrade for more capacity.',
+    });
   }
 
   // Validate Google Meet URL
@@ -146,6 +156,7 @@ app.get('/api/sessions', (req, res) => {
 async function launchBot(sessionId, meetUrl, isDemo = false) {
   const joinFn = isDemo ? joinMeetDemo : joinMeet;
   console.log(`[${sessionId}] Mode: ${isDemo ? '🎭 DEMO' : '🤖 LIVE'}`);
+  isBotActive = true;
 
   try {
     await joinFn(meetUrl, {
@@ -162,12 +173,14 @@ async function launchBot(sessionId, meetUrl, isDemo = false) {
 
       onError: async (error) => {
         console.error(`[${sessionId}] Error: ${error}`);
+        isBotActive = false;
         sessionManager.setError(sessionId, error);
         io.to(sessionId).emit('status', { sessionId, status: 'error', error });
       },
 
       onEnd: async () => {
         console.log(`[${sessionId}] Meeting ended, generating summary...`);
+        isBotActive = false;
         sessionManager.updateStatus(sessionId, 'summarizing');
         io.to(sessionId).emit('status', { sessionId, status: 'summarizing' });
 
