@@ -26,9 +26,10 @@ async function joinMeet(meetUrl, callbacks = {}) {
     emit('status', 'launching');
 
     browser = await puppeteer.launch({
-      headless: false,
+      headless: 'new',
       executablePath: execPath,
       args: [
+        '--headless=new',
         '--no-sandbox',
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage',
@@ -98,6 +99,7 @@ async function joinMeet(meetUrl, callbacks = {}) {
     // ── Navigate ─────────────────────────────────────────────────────────
     emit('status', 'navigating');
     await page.goto(meetUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
+    await page.screenshot({ path: 'public/debug-after-nav.png' });
     await sleep(5000); // let the SPA hydrate
 
     // ── Dismiss overlays ("Got it", "Dismiss", "Continue without …") ────
@@ -146,7 +148,7 @@ async function joinMeet(meetUrl, callbacks = {}) {
           if (el.offsetParent === null) continue; // skip hidden
           const txt = (el.textContent || '').trim().toLowerCase();
           if (txt === 'ask to join' || txt === 'join now' || txt === 'join meeting' || txt === 'join call') {
-            el.click();
+            (el.closest?.('button') || el).click();
             return txt;
           }
         }
@@ -256,7 +258,7 @@ async function joinMeet(meetUrl, callbacks = {}) {
       setInterval(() => {
         try {
           const container = document.querySelector(
-            '.iOzk7, .VbkSUe, .a4cQT, [class*="caption"]'
+            '[jsname="tgaKEf"], [data-message-text], .iTTPOb, [class*="caption"]'
           );
           if (!container || !container.innerText) return;
 
@@ -343,7 +345,7 @@ async function dismissByText(page, labels) {
         for (const el of els) {
           const txt = (el.textContent || '').trim();
           if (txt === label && el.offsetParent !== null) {
-            el.click();
+            (el.closest?.('button') || el).click();
             break;
           }
         }
