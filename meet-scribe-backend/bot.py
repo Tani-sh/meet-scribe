@@ -127,30 +127,21 @@ def main():
             driver.quit()
             sys.exit(1)
 
-        # Dismiss popups
+        # Dismiss popups, "Got it", and "Continue without microphone and camera"
         try:
-            buttons = driver.find_elements(By.TAG_NAME, "button")
+            buttons = driver.find_elements(By.XPATH, "//span | //button")
             for btn in buttons:
                 txt = btn.text.strip().lower()
-                if "dismiss" in txt or "got it" in txt or "accept" in txt or "i agree" in txt:
+                if "dismiss" in txt or "got it" in txt or "accept" in txt or "continue without microphone" in txt:
                     try:
-                        btn.click()
+                        driver.execute_script("arguments[0].click();", btn)
                         time.sleep(1)
                     except: pass
         except: pass
 
-        # Enter name if available
-        try:
-            inputs = driver.find_elements(By.CSS_SELECTOR, 'input[type="text"]')
-            for inp in inputs:
-                if inp.is_displayed():
-                    inp.send_keys("AI Notetaker")
-                    break
-        except: pass
-
         time.sleep(1)
 
-        # Mute mic/camera if available
+        # Mute mic/camera if available (do this before typing name to stabilize UI)
         try:
             for label in ['Turn off microphone', 'Turn off camera', 'camera', 'microphone']:
                 els = driver.find_elements(By.CSS_SELECTOR, f'[aria-label*="{label}"]')
@@ -160,26 +151,65 @@ def main():
                         time.sleep(0.5)
         except: pass
 
-        # Join button
-        joined = False
+        # Enter name if available
+        name_entered = False
         try:
-            # Look for ANY span on the screen that contains Join text
-            spans = driver.find_elements(By.XPATH, "//span[contains(text(), 'Ask to join') or contains(text(), 'Join now') or contains(text(), 'Join')]")
-            for span in spans:
-                if span.is_displayed():
-                    driver.execute_script("arguments[0].click();", span)
-                    joined = True
+            # First try explicit name inputs
+            name_inputs = driver.find_elements(By.XPATH, '//input[@type="text" and (contains(translate(@aria-label, "ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz"), "name") or contains(translate(@placeholder, "ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz"), "name"))]')
+            if not name_inputs:
+                name_inputs = driver.find_elements(By.CSS_SELECTOR, 'input[type="text"]')
+            
+            for inp in name_inputs:
+                if inp.is_displayed():
+                    inp.clear()
+                    inp.send_keys("AI Notetaker")
+                    name_entered = True
                     break
+        except: pass
+
+        time.sleep(1.5) # Wait for React to enable the join button
+
+        # Join button (Using exhaustive recallai texts)
+        joined = False
+        possible_texts = ["Join now", "Ask to join", "Join meeting", "Join call", "Join", "Continue", "Continue to join"]
+        
+        try:
+            for p_text in possible_texts:
+                if joined: break
+                spans = driver.find_elements(By.XPATH, f"//span[contains(translate(text(), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), '{p_text.lower()}')]")
+                for span in spans:
+                    if span.is_displayed():
+                        driver.execute_script("arguments[0].click();", span)
+                        joined = True
+                        break
         except: pass
 
         if not joined:
             try:
                 # Explicit JS fallback for the main join button
                 btn = driver.find_elements(By.CSS_SELECTOR, 'button[jsname="Qx7uuf"], button[class*="join"]')
-                if btn:
-                    driver.execute_script("arguments[0].click();", btn[0])
-                    joined = True
+                for b in btn:
+                    if b.is_displayed():
+                        driver.execute_script("arguments[0].click();", b)
+                        joined = True
+                        break
             except: pass
+            
+        if not joined and name_entered:
+            from selenium.webdriver.common.keys import Keys
+            # Recall AI fallback: press Enter if we filled a name but couldn't find the button
+            try:
+                driver.find_element(By.TAG_NAME, "body").send_keys(Keys.RETURN)
+                joined = True
+                time.sleep(1)
+            except: pass
+            
+        # 2-Step Join (Preview bypass)
+        try:
+            preview_joins = driver.find_elements(By.XPATH, "//span[contains(translate(text(), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'join now')]")
+            if len(preview_joins) > 1 and preview_joins[1].is_displayed():
+                driver.execute_script("arguments[0].click();", preview_joins[1])
+        except: pass
 
         if not joined:
             page_text = driver.execute_script("return document.body.innerText")
