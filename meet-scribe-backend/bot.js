@@ -1,6 +1,6 @@
 /**
  * Native Puppeteer-Stealth Bot for Google Meet
- * Uses ONLY valid Puppeteer APIs (not Playwright).
+ * Compatible with Puppeteer v24+ / Chrome 115+
  */
 
 const puppeteer = require('puppeteer-extra');
@@ -13,7 +13,8 @@ const path = require('path');
 async function joinMeet(meetUrl, callbacks = {}, sessionId = 'default') {
   const { onStatus, onTranscript, onError, onEnd } = callbacks;
 
-  // Use headful if DISPLAY is set (Xvfb on Render) — avoids headless detection heuristics
+  // On Render/Linux: use headful if DISPLAY is set (Xvfb).
+  // On Mac / true headless: use headless: true (NOT 'new' — deprecated in Puppeteer v24)
   const hasDisplay = !!process.env.DISPLAY;
   const execPath = process.env.PUPPETEER_EXECUTABLE_PATH || undefined;
 
@@ -29,38 +30,42 @@ async function joinMeet(meetUrl, callbacks = {}, sessionId = 'default') {
   try {
     emit('status', 'launching');
     if (!fs.existsSync('public')) fs.mkdirSync('public', { recursive: true });
-    
+
     const debugPath = `public/debug-${sessionId}.png`;
 
     browser = await puppeteer.launch({
-      // ── IDENTITY PERSISTENCE ──
-      // Mount the authenticated Chrome profile directly. This avoids "Browser may not be secure" 
-      // login blocks and puts the bot straight into the "Confirmed Users" queue.
+      // Mount the authenticated Chrome profile to bypass Google's login wall
       userDataDir: path.join(__dirname, 'data', 'chrome-profile'),
-      
-      // Run headful when a virtual display is available (Xvfb on Render)
-      // Headful mode bypasses Google's headless detection heuristics
-      headless: hasDisplay ? false : 'new',
+
+      // FIX 1: headless: true is correct for Puppeteer v24 / Chrome 115+
+      // 'new' was a transitional flag that is now deprecated/removed
+      headless: hasDisplay ? false : true,
+
       executablePath: execPath,
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage',
+        // FIX 2: Fake media streams so mic/camera "work" without real hardware
         '--use-fake-ui-for-media-stream',
         '--use-fake-device-for-media-stream',
+        // FIX 3: Keep GPU disabled for server compat but allow SW rendering
         '--disable-gpu',
-        // Critical evasion: disable the AutomationControlled flag that Google detects
+        '--disable-software-rasterizer',
+        // Prevent Google's bot-detection from seeing the automation flag
         '--disable-blink-features=AutomationControlled',
         '--disable-infobars',
-        '--js-flags=--max-old-space-size=256',
+        '--js-flags=--max-old-space-size=512',
         '--mute-audio',
-        // Realistic 1080p viewport — 0x0 or tiny sizes are instant bot flags
+        // Realistic 1080p viewport
         '--window-size=1920,1080',
+        // Allow autoplay (needed for Meet's audio/video)
+        '--autoplay-policy=no-user-gesture-required',
       ],
     });
-    console.log(`[Bot] Browser launched in ${hasDisplay ? 'headful (Xvfb virtual display)' : 'headless'} mode.`);
-    
-    // --- RAM SAVER: Kill zombie Chrome processes ---
+    console.log(`[Bot] Browser launched in ${hasDisplay ? 'headful (Xvfb)' : 'headless'} mode.`);
+
+    // Cleanup on process exit
     const cleanup = async () => {
       if (browser) {
         console.log('[Bot] Force closing browser due to process exit.');
@@ -69,10 +74,10 @@ async function joinMeet(meetUrl, callbacks = {}, sessionId = 'default') {
       process.exit();
     };
     process.on('SIGINT', cleanup);
-    process.on('SIGTERM', cleanup); // Render sends SIGTERM when restarting/stopping
+    process.on('SIGTERM', cleanup);
 
+    // Override mic/camera permissions at the origin level
     const context = browser.defaultBrowserContext();
-    // overridePermissions needs an ORIGIN, not a full URL
     await context.overridePermissions('https://meet.google.com', [
       'microphone',
       'camera',
@@ -81,157 +86,215 @@ async function joinMeet(meetUrl, callbacks = {}, sessionId = 'default') {
 
     const page = await browser.newPage();
 
-    // --- RAM SAVER: Block heavy resources ---
+    // FIX 4: Do NOT block 'image' resources — Google Meet's lobby UI
+    // requires image resources for critical CSS background / avatar loading.
+    // Only block true media/font files that are never needed.
     await page.setRequestInterception(true);
     page.on('request', (req) => {
-      const resourceType = req.resourceType();
-      if (['image', 'font', 'media'].includes(resourceType)) {
+      const type = req.resourceType();
+      // Only block heavy binary fonts and raw media (video chunks)
+      if (type === 'font' || type === 'media') {
         req.abort();
       } else {
         req.continue();
       }
     });
 
-    // ── Use actual Chrome version for UA (to avoid cookie/UA mismatch) ────
-    const fullVersion = await browser.version(); // e.g. "HeadlessChrome/120.0.6099.109"
-    const chromeVersion = fullVersion.split('/')[1] || '123.0.0.0';
-    await page.setUserAgent(`Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeVersion} Safari/537.36`);
-
-    await page.setExtraHTTPHeaders({
-      'Accept-Language': 'en-US,en;q=0.9',
-    });
-    
+    // Use the actual Chrome version for the User-Agent (must match cookies)
+    const fullVersion = await browser.version(); // e.g. "Chrome/146.0.7680.153"
+    const chromeVersion = fullVersion.split('/')[1] || '146.0.0.0';
+    await page.setUserAgent(
+      `Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeVersion} Safari/537.36`
+    );
+    await page.setExtraHTTPHeaders({ 'Accept-Language': 'en-US,en;q=0.9' });
     await page.setViewport({ width: 1920, height: 1080 });
 
-    // ── Navigate smoothly as an authenticated user ───────────────────────
+    // Navigate to the Meet URL
     emit('status', 'navigating');
     await page.goto(meetUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
-    await page.screenshot({ path: debugPath });
-    await sleep(10000); // let the SPA fully hydrate on Render's network
 
-    // ── Dismiss overlays ("Got it", "Dismiss", "Continue without …") ────
+    // Wait for the SPA to fully hydrate (especially slow on low-RAM servers)
+    await sleep(8000);
+    await page.screenshot({ path: debugPath });
+
+    // Dismiss common overlays before trying to join
     await dismissByText(page, [
       'Got it',
       'Dismiss',
       'Continue without microphone and camera',
       'Continue without microphone',
+      'OK',
     ]);
 
-    // ── Mute mic / camera ────────────────────────────────────────────────
+    // Turn off mic & camera in the lobby (reduce bot fingerprint)
     await clickAriaLabel(page, 'Turn off microphone');
+    await sleep(300);
     await clickAriaLabel(page, 'Turn off camera');
+    await sleep(300);
 
-    // ── Wait for the 'Getting ready...' spinner to finish (up to 60s) ──
-    emit('status', 'waiting for Google Meet to initialize... (can take 30s)');
-    
+    // ── Wait for "Getting ready..." / join lobby (up to 90 seconds) ──────────
+    emit('status', 'waiting for lobby to load...');
+
     let joined = null;
     let nameFilled = false;
 
-    // Poll every 2 seconds for a maximum of 60 seconds (30 attempts)
-    for (let attempt = 0; attempt < 30; attempt++) {
+    for (let attempt = 0; attempt < 45; attempt++) {
+      // Step 1: Fill in name if there's a name input (guest/pre-join screen)
       if (!nameFilled) {
         nameFilled = await page.evaluate(() => {
-          const inputs = document.querySelectorAll('input[type="text"]');
+          const inputs = document.querySelectorAll('input[type="text"], input[aria-label*="name"], input[placeholder*="name"]');
           for (const inp of inputs) {
             const rect = inp.getBoundingClientRect();
-            if (rect.width > 0 && rect.height > 0) { // headless-safe visibility
-              // Use native setter to trigger React state update
+            if (rect.width > 0 && rect.height > 0) {
               const nativeValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
               nativeValueSetter.call(inp, 'AI Notetaker');
               inp.dispatchEvent(new Event('input', { bubbles: true }));
+              inp.dispatchEvent(new Event('change', { bubbles: true }));
               return true;
             }
           }
           return false;
         });
         if (nameFilled) {
-          console.log('[Bot] Filled custom name');
-          await sleep(1000); // Wait a second for React to enable the join button
+          console.log('[Bot] Filled name field');
+          await sleep(1200);
         }
       }
 
+      // Step 2: Try to click the join button using multiple detection strategies
       joined = await page.evaluate(() => {
-        const els = [...document.querySelectorAll('button, span')];
-        for (const el of els) {
-          const rect = el.getBoundingClientRect();
-          const txt = (el.textContent || '').trim().toLowerCase();
-          
-          if (rect.width === 0 || rect.height === 0) {
-            // Detailed log for potential button layout issues
-            if (txt.includes('join') || txt.includes('ask')) {
-              console.log(`[Bot DEBUG] Found candidate "${txt}" but it is invisible (0x0).`);
+        // Strategy A: Partial aria-label match (most reliable for new Meet UI)
+        const ariaTargets = [
+          'ask to join',
+          'join now',
+          'join meeting',
+          'join call',
+          'request to join',
+          'join'
+        ];
+        const allClickable = [...document.querySelectorAll('button, [role="button"]')];
+        for (const label of ariaTargets) {
+          for (const btn of allClickable) {
+            const btnAria = (btn.getAttribute('aria-label') || '').toLowerCase();
+            if (btnAria === label || (btnAria.includes(label) && btnAria.length < 30)) {
+              if (btn.getBoundingClientRect().width > 0) {
+                btn.click();
+                return label;
+              }
             }
-            continue;
           }
-          
-          const joinKeywords = ['ask to join', 'join now', 'join meeting', 'join call', 'ready to join', 'join'];
-          if (joinKeywords.some(k => txt === k || (txt.includes(k) && txt.length < 25))) {
-            (el.closest?.('button') || el).click();
+        }
+
+        // Strategy B: Text content scan (fallback for older/transitional UI)
+        for (const el of allClickable) {
+          const rect = el.getBoundingClientRect();
+          if (rect.width === 0 || rect.height === 0) continue;
+          const txt = (el.textContent || '').trim().toLowerCase();
+          if (ariaTargets.some(k => txt === k || (txt.includes(k) && txt.length < 30))) {
+            el.click();
             return txt;
           }
         }
-        return null; // not found yet
+
+        // Strategy C: Span inside button (for Material Design / MUI buttons)
+        const spans = [...document.querySelectorAll('span')];
+        for (const span of spans) {
+          const txt = (span.textContent || '').trim().toLowerCase();
+          if (ariaTargets.includes(txt)) {
+            const btn = span.closest('button') || span.closest('[role="button"]');
+            if (btn && btn.getBoundingClientRect().width > 0) {
+              btn.click();
+              return txt + ' (via span)';
+            }
+          }
+        }
+
+        return null;
       });
 
       if (joined) {
-        console.log(`[Bot] Clicked: "${joined}"`);
-        // Take a "joined" screenshot for verification
+        console.log(`[Bot] Clicked join: "${joined}"`);
+        await sleep(2000);
         await page.screenshot({ path: debugPath });
-        break; 
+        break;
       }
-      
-      await sleep(2000); 
+
+      // Log progress every 10 seconds
+      if (attempt % 5 === 0) {
+        const snapshot = await page.evaluate(() => {
+          return [...document.querySelectorAll('button, [role="button"]')]
+            .map(el => ({
+              text: (el.textContent || '').trim().substring(0, 40),
+              ariaLabel: el.getAttribute('aria-label') || '',
+              visible: el.getBoundingClientRect().width > 0,
+            }))
+            .filter(b => (b.text || b.ariaLabel) && b.visible)
+            .slice(0, 8);
+        });
+        console.log(`[Bot] Attempt ${attempt}: visible buttons =`, JSON.stringify(snapshot));
+      }
+
+      await sleep(2000);
     }
 
     if (!joined) {
-      // DEBUG: Capture all button text to see what Google is actually showing
-      const allButtons = await page.evaluate(() => {
-        return [...document.querySelectorAll('button, [role="button"], span')].map(el => ({
-          text: (el.textContent || '').trim(),
-          visible: el.getBoundingClientRect().width > 0
-        })).filter(b => b.text.length > 0 && b.text.length < 50);
-      });
-      console.log('[Bot DEBUG] All visible buttons found:', JSON.stringify(allButtons));
+      // Capture full debug info before giving up
+      const allButtons = await page.evaluate(() =>
+        [...document.querySelectorAll('button, [role="button"], span')].map(el => ({
+          text: (el.textContent || '').trim().substring(0, 60),
+          ariaLabel: el.getAttribute('aria-label') || '',
+          visible: el.getBoundingClientRect().width > 0,
+        })).filter(b => (b.text || b.ariaLabel) && b.visible)
+      );
+      console.log('[Bot DEBUG] All visible interactive elements:', JSON.stringify(allButtons));
 
-      if (nameFilled) {
-        console.log('[Bot] No join button found, pressing Enter as fallback');
-        await page.keyboard.press('Enter');
-        await sleep(3000);
-        await page.screenshot({ path: debugPath });
-      } else {
-        console.log('[Bot] Failed to find join button after 60 seconds. Taking final failure screenshot...');
+      // Fallback: press Enter regardless of whether we logged in or filled a name.
+      // Pressing enter on the lobby often invokes the primary action (Join)
+      console.log('[Bot] Pressing Enter as last-resort join attempt');
+      await page.keyboard.press('Enter');
+      await sleep(4000);
+      await page.screenshot({ path: debugPath });
+      
+      const hasLeaveBtn = await page.evaluate(() => {
+        const btn = document.querySelector('button[aria-label*="Leave"], button[aria-label*="leave"]');
+        return !!(btn && btn.getBoundingClientRect().width > 0);
+      });
+      
+      if (!hasLeaveBtn) {
         await page.screenshot({ path: debugPath, fullPage: true });
-        emit('error', `Could not find join button. Bot currently sees: ${allButtons.slice(0,3).map(b => b.text).join(', ')}`);
+        emit('error', `Could not find join button. Bot sees: ${allButtons.slice(0, 3).map(b => b.ariaLabel || b.text).join(', ')}`);
         await browser.close();
         onEnd?.();
         return;
       }
+      joined = 'Enter key fallback';
     }
 
-    // ── Wait to be admitted ──────────────────────────────────────────────
+    // ── Wait to be admitted (up to 3 min) ────────────────────────────────────
     emit('status', 'waiting for host to admit...');
     let inCall = false;
-    for (let i = 0; i < 120; i++) {
-      // Check for "Leave call" button WITHOUT clicking it
-      const hasLeave = await page.evaluate(() => {
-        const btn = document.querySelector('button[aria-label*="Leave call"]');
-        if (!btn) return false;
-        const rect = btn.getBoundingClientRect();
-        return rect.width > 0 && rect.height > 0;
-      });
-      if (hasLeave) {
-        inCall = true;
-        break;
-      }
 
-      // Check for rejection
-      const bodyText = await page.evaluate(() => document.body.innerText);
+    for (let i = 0; i < 180; i++) {
+      // Check for "Leave call" button — reliable indicator that we're inside
+      const hasLeave = await page.evaluate(() => {
+        const btn = document.querySelector(
+          'button[aria-label*="Leave"], button[aria-label*="leave call"], button[aria-label*="Leave call"]'
+        );
+        if (!btn) return false;
+        return btn.getBoundingClientRect().width > 0;
+      });
+      if (hasLeave) { inCall = true; break; }
+
+      // Detect rejection / expired meeting
+      const bodyText = await page.evaluate(() => document.body?.innerText || '');
       if (
         bodyText.includes("You can't join") ||
         bodyText.includes("can't join this video") ||
-        bodyText.includes('denied')
+        bodyText.includes('denied') ||
+        bodyText.includes('Invalid video call name') ||
+        bodyText.includes('No one else is here')
       ) {
-        emit('error', 'Join denied by host or meeting has ended.');
+        emit('error', 'Join denied by host or meeting has ended / is invalid.');
         await browser.close();
         onEnd?.();
         return;
@@ -241,70 +304,58 @@ async function joinMeet(meetUrl, callbacks = {}, sessionId = 'default') {
     }
 
     if (!inCall) {
-      emit('error', 'Timed out waiting to be admitted (2 min).');
+      emit('error', 'Timed out waiting to be admitted (3 min).');
       await browser.close();
       onEnd?.();
       return;
     }
 
-    // ── In-meeting ───────────────────────────────────────────────────────
+    // ── In-meeting ────────────────────────────────────────────────────────────
     emit('status', 'listening');
-    await sleep(1500);
+    await sleep(2000);
 
-    // Dismiss any "Got it" tooltip inside the meeting room
-    await dismissByText(page, ['Got it', 'Dismiss']);
+    // Dismiss any "Got it" tooltip inside the meeting
+    await dismissByText(page, ['Got it', 'Dismiss', 'OK']);
 
-    // ── Enable captions ──────────────────────────────────────────────────
+    // ── Enable captions ───────────────────────────────────────────────────────
     // Method 1: keyboard shortcut 'c'
-    try {
-      await page.keyboard.press('c');
-      await sleep(1000);
-    } catch (e) {}
+    try { await page.keyboard.press('c'); await sleep(800); } catch (_) {}
 
-    // Method 2: click the CC button if captions are still off
+    // Method 2: Click CC button if still off
     try {
       await page.evaluate(() => {
-        const btns = document.querySelectorAll('button');
+        const btns = [...document.querySelectorAll('button, [role="button"]')];
         for (const b of btns) {
           const label = (b.getAttribute('aria-label') || '').toLowerCase();
-          if (label.includes('turn on captions') || label.includes('closed captions')) {
-            if (b.getAttribute('aria-pressed') !== 'true') {
-              b.click();
-            }
+          if (
+            (label.includes('turn on captions') || label.includes('closed captions') || label.includes('caption')) &&
+            b.getAttribute('aria-pressed') !== 'true'
+          ) {
+            b.click();
             break;
           }
         }
       });
-    } catch (e) {}
+    } catch (_) {}
 
-    // ── Expose callbacks to receive captions and flush events ────────────
-    await page.exposeFunction('__emitCaption', (text) => {
-      emit('transcript', text);
-    });
+    // ── Expose the transcript callback to browser context ─────────────────────
+    await page.exposeFunction('__emitCaption', (text) => emit('transcript', text));
 
-    // ── Inject MutationObserver caption scraper ───────────────────────────
-    // Uses the MutationObserver API (not deprecated setInterval polling).
-    // Implements stateful deduplication to handle Google Meet's real-time
-    // caption refinement and a Flush+Clear pattern to prevent memory leaks.
+    // ── Inject MutationObserver caption scraper ───────────────────────────────
     await page.evaluate(() => {
-      // --- State management ---
-      let speakerBuffer = {};   // { speakerName: latestText } — collapses refinements
-      let finalizedLog = [];    // finalized segments ready to flush
+      let speakerBuffer = {};
+      let finalizedLog = [];
       let lastSpeaker = null;
 
-      const BLOCKLIST = ['caption settings', 'jump to', 'afrikaans'];
+      const BLOCKLIST = ['caption settings', 'jump to', 'afrikaans', 'turn on'];
 
-      // Locate the caption root — stable selector chain
       const getCaptionRoot = () =>
         document.querySelector('[jsname="tgaKEf"], [data-message-text], .iTTPOb, [class*="caption"]');
 
-      // Deduplicate: collapse Google's real-time refinements per speaker
       const handleMutation = () => {
         const root = getCaptionRoot();
         if (!root) return;
 
-        // Google Meet renders each speaker in a separate container row
-        // Try to get speaker name + text; fall back to raw text
         const speakerEl = root.querySelector('[class*="speaker"], [class*="name"], [jsname="r4nke"]');
         const speaker = speakerEl ? speakerEl.innerText.trim() : 'Speaker';
         const fullText = root.innerText.trim();
@@ -312,63 +363,46 @@ async function joinMeet(meetUrl, callbacks = {}, sessionId = 'default') {
 
         if (!text || BLOCKLIST.some(b => text.toLowerCase().includes(b))) return;
 
-        // Speaker changed: finalize previous speaker's buffer
         if (lastSpeaker && lastSpeaker !== speaker && speakerBuffer[lastSpeaker]) {
           finalizedLog.push({ speaker: lastSpeaker, text: speakerBuffer[lastSpeaker] });
           delete speakerBuffer[lastSpeaker];
         }
 
-        // Update the rolling buffer for the current speaker (collapses refinements)
         speakerBuffer[speaker] = text;
         lastSpeaker = speaker;
       };
 
-      // Flush finalized segments to the Node.js backend every 15 seconds
-      // This prevents the browser tab from accumulating unbounded memory
+      // Flush to Node.js every 15 seconds
       setInterval(() => {
-        // Finalize current speaker's buffer before flushing
         if (lastSpeaker && speakerBuffer[lastSpeaker]) {
           finalizedLog.push({ speaker: lastSpeaker, text: speakerBuffer[lastSpeaker] });
           delete speakerBuffer[lastSpeaker];
           lastSpeaker = null;
         }
-
         if (finalizedLog.length === 0) return;
-
-        // Emit each finalized segment and clear memory
         for (const segment of finalizedLog) {
-          const line = `${segment.speaker}: ${segment.text}`;
-          window.__emitCaption(line);
+          window.__emitCaption(`${segment.speaker}: ${segment.text}`);
         }
-        finalizedLog = []; // Clear browser memory
+        finalizedLog = [];
       }, 15000);
 
-      // Attach MutationObserver — fires instantly on DOM changes, no polling needed
+      // Attach MutationObserver (polls until caption root appears)
       const observer = new MutationObserver(handleMutation);
-
-      // Poll for caption root (it may not exist until captions are enabled)
       const attachObserver = setInterval(() => {
         const root = getCaptionRoot();
         if (root) {
-          observer.observe(root, {
-            childList: true,
-            characterData: true,
-            subtree: true,
-          });
+          observer.observe(root, { childList: true, characterData: true, subtree: true });
           clearInterval(attachObserver);
-          console.log('[Bot] MutationObserver attached to caption container.');
+          console.log('[Bot] MutationObserver attached to caption root.');
         }
       }, 2000);
     });
 
-    // ── Detect meeting end / kick ────────────────────────────────────────
+    // ── Detect meeting end / kick ─────────────────────────────────────────────
     const watchdog = setInterval(async () => {
       try {
-        if (!browser.isConnected()) {
-          clearInterval(watchdog);
-          return;
-        }
-        const bodyText = await page.evaluate(() => document.body.innerText);
+        if (!browser.isConnected()) { clearInterval(watchdog); return; }
+        const bodyText = await page.evaluate(() => document.body?.innerText || '');
         const ended =
           bodyText.includes('You left the meeting') ||
           bodyText.includes("You've left the meeting") ||
@@ -380,9 +414,7 @@ async function joinMeet(meetUrl, callbacks = {}, sessionId = 'default') {
           await browser.close();
           onEnd?.();
         }
-      } catch (e) {
-        // page/browser might already be closed
-      }
+      } catch (_) {}
     }, 5000);
 
     // Hard timeout: 3 hours max
@@ -392,8 +424,9 @@ async function joinMeet(meetUrl, callbacks = {}, sessionId = 'default') {
         emit('status', 'hard timeout reached (3h)');
         await browser.close();
         onEnd?.();
-      } catch (e) {}
+      } catch (_) {}
     }, 3 * 60 * 60 * 1000);
+
   } catch (e) {
     emit('error', `Bot crash: ${e.message}`);
     try { if (browser) await browser.close(); } catch (_) {}
@@ -401,44 +434,42 @@ async function joinMeet(meetUrl, callbacks = {}, sessionId = 'default') {
   }
 }
 
-// ─── Helpers (pure Puppeteer, no Playwright) ─────────────────────────────────
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
-/** Click the first visible button/span whose trimmed text matches one of the labels. */
+/** Click the first visible button/span whose trimmed text matches any of the labels. */
 async function dismissByText(page, labels) {
   try {
     await page.evaluate((labels) => {
-      const els = [...document.querySelectorAll('button, span')];
-      for (const label of labels) {
-        for (const el of els) {
-          const txt = (el.textContent || '').trim().toLowerCase();
-          const rect = el.getBoundingClientRect();
-          if (labels.some(l => txt.includes(l.toLowerCase())) && rect.width > 0 && rect.height > 0) {
-            (el.closest?.('button') || el).click();
-            break;
-          }
+      const els = [...document.querySelectorAll('button, [role="button"], span')];
+      for (const el of els) {
+        const txt = (el.textContent || '').trim().toLowerCase();
+        const rect = el.getBoundingClientRect();
+        if (rect.width > 0 && rect.height > 0 && labels.some(l => txt.includes(l.toLowerCase()))) {
+          (el.closest('button') || el.closest('[role="button"]') || el).click();
+          break;
         }
       }
     }, labels);
-    await new Promise((r) => setTimeout(r, 500));
-  } catch (e) {}
+    await sleep(500);
+  } catch (_) {}
 }
 
 /** Click a button by partial aria-label match (case-insensitive). */
 async function clickAriaLabel(page, partialLabel) {
   try {
     await page.evaluate((label) => {
-      const btns = document.querySelectorAll('button');
+      const btns = [...document.querySelectorAll('button, [role="button"]')];
       for (const b of btns) {
         const al = (b.getAttribute('aria-label') || '').toLowerCase();
         const rect = b.getBoundingClientRect();
-        if (al.includes(label.toLowerCase()) && rect.width > 0 && rect.height > 0) {
+        if (rect.width > 0 && rect.height > 0 && al.includes(label.toLowerCase())) {
           b.click();
           break;
         }
       }
     }, partialLabel);
-    await new Promise((r) => setTimeout(r, 300));
-  } catch (e) {}
+    await sleep(300);
+  } catch (_) {}
 }
 
 function sleep(ms) {
