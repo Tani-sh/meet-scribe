@@ -7,7 +7,7 @@ const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 puppeteer.use(StealthPlugin());
 
-async function joinMeet(meetUrl, callbacks = {}) {
+async function joinMeet(meetUrl, callbacks = {}, sessionId = 'default') {
   const { onStatus, onTranscript, onError, onEnd } = callbacks;
 
   // Use headful if DISPLAY is set (Xvfb on Render) — avoids headless detection heuristics
@@ -25,9 +25,10 @@ async function joinMeet(meetUrl, callbacks = {}) {
 
   try {
     emit('status', 'launching');
-    const fs = require('fs');
     const path = require('path');
     if (!fs.existsSync('public')) fs.mkdirSync('public', { recursive: true });
+    
+    const debugPath = `public/debug-${sessionId}.png`;
 
     browser = await puppeteer.launch({
       // ── IDENTITY PERSISTENCE ──
@@ -103,8 +104,8 @@ async function joinMeet(meetUrl, callbacks = {}) {
     // ── Navigate smoothly as an authenticated user ───────────────────────
     emit('status', 'navigating');
     await page.goto(meetUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
-    await page.screenshot({ path: 'public/debug-after-nav.png' });
-    await sleep(5000); // let the SPA hydrate
+    await page.screenshot({ path: debugPath });
+    await sleep(10000); // let the SPA fully hydrate on Render's network
 
     // ── Dismiss overlays ("Got it", "Dismiss", "Continue without …") ────
     await dismissByText(page, [
@@ -172,21 +173,33 @@ async function joinMeet(meetUrl, callbacks = {}) {
 
       if (joined) {
         console.log(`[Bot] Clicked: "${joined}"`);
-        break; // Successfully clicked, exit polling loop
+        // Take a "joined" screenshot for verification
+        await page.screenshot({ path: debugPath });
+        break; 
       }
       
-      await sleep(2000); // 2 second interval
+      await sleep(2000); 
     }
 
     if (!joined) {
+      // DEBUG: Capture all button text to see what Google is actually showing
+      const allButtons = await page.evaluate(() => {
+        return [...document.querySelectorAll('button, [role="button"], span')].map(el => ({
+          text: (el.textContent || '').trim(),
+          visible: el.getBoundingClientRect().width > 0
+        })).filter(b => b.text.length > 0 && b.text.length < 50);
+      });
+      console.log('[Bot DEBUG] All visible buttons found:', JSON.stringify(allButtons));
+
       if (nameFilled) {
         console.log('[Bot] No join button found, pressing Enter as fallback');
         await page.keyboard.press('Enter');
+        await sleep(3000);
+        await page.screenshot({ path: debugPath });
       } else {
-        console.log('[Bot] Failed to find join button after 60 seconds. Taking screenshot...');
-        await page.screenshot({ path: 'public/screenshot.png', fullPage: true });
-        console.log('[Bot] Saved screenshot to public/screenshot.png');
-        emit('error', 'Could not find join button. Is the Meet link valid?');
+        console.log('[Bot] Failed to find join button after 60 seconds. Taking final failure screenshot...');
+        await page.screenshot({ path: debugPath, fullPage: true });
+        emit('error', `Could not find join button. Bot currently sees: ${allButtons.slice(0,3).map(b => b.text).join(', ')}`);
         await browser.close();
         onEnd?.();
         return;

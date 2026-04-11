@@ -209,7 +209,7 @@ async function launchBot(sessionId, meetUrl, isDemo = false) {
           console.log(`[${sessionId}] ⚠️ No transcript captured`);
         }
       },
-    });
+    }, sessionId);
   } catch (err) {
     console.error(`[${sessionId}] Fatal error:`, err.message);
     sessionManager.setError(sessionId, err.message);
