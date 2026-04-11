@@ -26,7 +26,7 @@ function AppRoutes() {
 
   return (
     <>
-      <div className="app-bg"></div>
+      <div className="app-bg"><div className="starfield"></div></div>
       <Navbar />
       <Routes>
         <Route path="/login" element={user ? <Navigate to="/" /> : <Login />} />

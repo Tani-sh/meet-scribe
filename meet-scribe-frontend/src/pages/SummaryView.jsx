@@ -5,7 +5,7 @@ import StatusIndicator from '../components/StatusIndicator';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
-const SPEAKER_COLORS = ['#6c5ce7', '#00d2a0', '#ffa726', '#40c4ff', '#ff5252', '#e040fb', '#64ffda', '#ff8a65'];
+const SPEAKER_COLORS = ['#c9a84c', '#5ccf8d', '#e8b84c', '#5c9ccf', '#cf5c5c', '#948ae8', '#64dfc8', '#e88a5c'];
 
 export default function SummaryView() {
   const { sessionId } = useParams();
@@ -72,7 +72,7 @@ export default function SummaryView() {
     return (
       <div className="page-container">
         <div className="empty-state">
-          <div className="empty-icon">❌</div>
+          <div className="empty-icon">✦</div>
           <h3>Session not found</h3>
           <p>This session doesn't exist or has expired.</p>
           <Link to="/" className="btn btn-primary" style={{ marginTop: '24px', display: 'inline-flex' }}>
@@ -93,10 +93,10 @@ export default function SummaryView() {
             ← Dashboard
           </Link>
         </div>
-        <h1>Meeting Summary</h1>
+        <h1>Meeting Inscriptions</h1>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginTop: '8px' }}>
           <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-            🔗 {session.meetUrl}
+            ◈ {session.meetUrl}
           </span>
           <StatusIndicator status={session.status} />
         </div>
@@ -114,22 +114,22 @@ export default function SummaryView() {
           marginBottom: '24px',
         }}>
           <div className="insight-card">
-            <div className="insight-icon">👥</div>
+            <div className="insight-icon">◉</div>
             <div className="insight-value">{analytics.speakerCount}</div>
             <div className="insight-label">Speakers</div>
           </div>
           <div className="insight-card">
-            <div className="insight-icon">💬</div>
+            <div className="insight-icon">❖</div>
             <div className="insight-value">{analytics.totalLines}</div>
             <div className="insight-label">Statements</div>
           </div>
           <div className="insight-card">
-            <div className="insight-icon">📝</div>
+            <div className="insight-icon">✦</div>
             <div className="insight-value">{analytics.totalWords.toLocaleString()}</div>
             <div className="insight-label">Words</div>
           </div>
           <div className="insight-card">
-            <div className="insight-icon">⏱️</div>
+            <div className="insight-icon">⬡</div>
             <div className="insight-value">~{analytics.estimatedDuration}m</div>
             <div className="insight-label">Duration</div>
           </div>
@@ -139,8 +139,8 @@ export default function SummaryView() {
       {/* Speaker Analytics */}
       {analytics && analytics.speakers.length > 0 && (
         <div className="glass-card" style={{ marginBottom: '24px' }}>
-          <h2 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '20px' }}>
-            📊 Speaker Analytics
+          <h2 style={{ fontSize: '1.2rem', fontWeight: 600, color: 'var(--accent-light)', marginBottom: '20px', fontFamily: 'var(--font-heading)', letterSpacing: '0.03em' }}>
+            ✦ Speaker Analytics
           </h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             {analytics.speakers.map((speaker, i) => (
@@ -175,10 +175,10 @@ export default function SummaryView() {
       )}
 
       {/* Summary Card */}
-      <div className="glass-card" style={{ marginBottom: '24px' }}>
+      <div className="glass-card" style={{ marginBottom: '24px', background: 'rgba(201, 168, 76, 0.03)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '8px' }}>
-          <h2 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
-            ✨ AI Summary
+          <h2 style={{ fontSize: '1.2rem', fontWeight: 600, color: 'var(--accent-light)', margin: 0, fontFamily: 'var(--font-heading)', letterSpacing: '0.03em' }}>
+            ✦ AI Summary
           </h2>
           <div style={{ display: 'flex', gap: '8px' }}>
             <button className="btn btn-secondary btn-sm" onClick={copySummary}>
@@ -214,7 +214,7 @@ export default function SummaryView() {
             className={`accordion-header ${showTranscript ? 'open' : ''}`}
             onClick={() => setShowTranscript(!showTranscript)}
           >
-            <span>📝 Raw Transcript ({session.transcriptCount || 0} entries)</span>
+            <span>❖ Raw Transcript ({session.transcriptCount || 0} entries)</span>
             <span className="arrow">▼</span>
           </button>
           {showTranscript && (
@@ -233,8 +233,8 @@ export default function SummaryView() {
       {session.error && (
         <div className="glass-card" style={{
           marginTop: '24px',
-          borderColor: 'rgba(255, 82, 82, 0.2)',
-          background: 'rgba(255, 82, 82, 0.05)',
+          borderColor: 'rgba(207, 92, 92, 0.2)',
+          background: 'rgba(207, 92, 92, 0.05)',
         }}>
           <h3 style={{ color: 'var(--error)', marginBottom: '8px' }}>⚠️ Error</h3>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>{session.error}</p>

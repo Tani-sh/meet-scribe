@@ -7,6 +7,9 @@ const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 puppeteer.use(StealthPlugin());
 
+const fs = require('fs');
+const path = require('path');
+
 async function joinMeet(meetUrl, callbacks = {}, sessionId = 'default') {
   const { onStatus, onTranscript, onError, onEnd } = callbacks;
 
@@ -25,7 +28,6 @@ async function joinMeet(meetUrl, callbacks = {}, sessionId = 'default') {
 
   try {
     emit('status', 'launching');
-    const path = require('path');
     if (!fs.existsSync('public')) fs.mkdirSync('public', { recursive: true });
     
     const debugPath = `public/debug-${sessionId}.png`;

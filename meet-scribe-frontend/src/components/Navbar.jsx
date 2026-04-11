@@ -15,8 +15,8 @@ export default function Navbar() {
   return (
     <nav className="navbar">
       <div className="navbar-brand">
-        <span className="brand-icon">🤖</span>
-        <span className="brand-text">Meet Scribe</span>
+        <span className="brand-icon">✦</span>
+        <span className="brand-text">AI Scribe</span>
       </div>
 
       <div className="navbar-links">

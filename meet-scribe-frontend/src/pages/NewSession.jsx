@@ -19,9 +19,7 @@ export default function NewSession() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    return () => {
-      socketRef.current?.disconnect();
-    };
+    return () => { socketRef.current?.disconnect(); };
   }, []);
 
   useEffect(() => {
@@ -48,20 +46,15 @@ export default function NewSession() {
       setSessionId(sid);
       setStatus('joining');
 
-      // Connect to Socket.IO for real-time updates
       const socket = io(API_URL);
       socketRef.current = socket;
 
-      socket.on('connect', () => {
-        socket.emit('subscribe', sid);
-      });
+      socket.on('connect', () => { socket.emit('subscribe', sid); });
 
       socket.on('status', (data) => {
         if (data.sessionId === sid) {
           setStatus(data.status);
-          if (data.status === 'done') {
-            navigate(`/summary/${sid}`);
-          }
+          if (data.status === 'done') navigate(`/summary/${sid}`);
           if (data.status === 'error') {
             setError(data.error || 'An error occurred');
             setDeploying(false);
@@ -76,9 +69,7 @@ export default function NewSession() {
       });
 
       socket.on('summary', (data) => {
-        if (data.sessionId === sid) {
-          navigate(`/summary/${sid}`);
-        }
+        if (data.sessionId === sid) navigate(`/summary/${sid}`);
       });
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to deploy bot. Is the backend running?');
@@ -87,29 +78,23 @@ export default function NewSession() {
   };
 
   const isActive = ['joining', 'launching', 'navigating', 'waiting-for-signin', 'listening', 'summarizing'].includes(status);
+  const isListening = status === 'listening';
 
   return (
     <div className="page-container">
       <div className="page-header">
         <h1>New Session</h1>
-        <p>Deploy the AI Scribe bot to capture and summarize your meeting</p>
+        <p>Deploy the AI Scribe to capture and illuminate your meeting</p>
       </div>
 
       <div className="glass-card" style={{ maxWidth: '700px' }}>
         {/* Evaluator Instructions */}
-        <div style={{
-          padding: '16px',
-          background: 'rgba(255, 193, 7, 0.1)',
-          border: '1px solid rgba(255, 193, 7, 0.3)',
-          borderRadius: '8px',
-          marginBottom: '24px',
-          color: '#ffca28'
-        }}>
-          <h4 style={{ margin: '0 0 8px 0', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            ⚠️ Evaluator Instructions
-          </h4>
-          <p style={{ margin: 0, fontSize: '0.85rem', lineHeight: '1.4' }}>
-            Since this project is currently deployed on a free cloud tier without Google Chrome installed, <strong>Live Mode will crash</strong>. Please ensure the <strong>Demo Mode toggle is green</strong> below to test the real-time WebSocket connection and Gemini AI Summarization pipelines without hardware timeouts!
+        <div className="info-banner" style={{ marginBottom: '24px' }}>
+          <h4>⚠️ Evaluator Instructions</h4>
+          <p style={{ margin: 0 }}>
+            For a quick test, ensure the <strong>Demo Mode toggle</strong> is active below.
+            This simulates a full meeting with realistic transcript and Gemini AI summarization
+            without requiring a live Google Meet session.
           </p>
         </div>
 
@@ -132,83 +117,92 @@ export default function NewSession() {
               onClick={deployBot}
               disabled={!meetUrl || isActive || deploying}
             >
-              {isActive ? '⏳ Active' : '🤖 Deploy'}
+              {isActive ? '⏳ Active' : '✦ Deploy'}
             </button>
-            </div>
           </div>
+        </div>
 
-          {/* Mode Toggle */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            marginBottom: '20px',
-            padding: '12px 16px',
-            background: demoMode ? 'rgba(108, 92, 231, 0.08)' : 'rgba(0, 200, 83, 0.08)',
-            border: `1px solid ${demoMode ? 'rgba(108, 92, 231, 0.2)' : 'rgba(0, 200, 83, 0.2)'}`,
-            borderRadius: '10px',
-          }}>
-            <button
-              onClick={() => setDemoMode(!demoMode)}
-              disabled={isActive}
-              style={{
-                padding: '6px 14px',
-                borderRadius: '8px',
-                border: 'none',
-                background: demoMode ? 'var(--accent)' : '#00c853',
-                color: '#fff',
-                fontSize: '0.78rem',
-                fontWeight: 600,
-                cursor: isActive ? 'not-allowed' : 'pointer',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              {demoMode ? '🎭 Demo Mode' : '🤖 Live Mode'}
-            </button>
-            <span style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>
-              {demoMode
-                ? 'Simulates a meeting with realistic transcript — no Google Meet needed'
-                : 'Connects to real Google Meet via Puppeteer (may be blocked by Google)'}
-            </span>
-          </div>
+        {/* Mode Toggle */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px',
+          marginBottom: '20px',
+          padding: '12px 16px',
+          background: demoMode ? 'rgba(201, 168, 76, 0.06)' : 'rgba(92, 207, 141, 0.06)',
+          border: `1px solid ${demoMode ? 'rgba(201, 168, 76, 0.15)' : 'rgba(92, 207, 141, 0.15)'}`,
+          borderRadius: '10px',
+        }}>
+          <button
+            onClick={() => setDemoMode(!demoMode)}
+            disabled={isActive}
+            style={{
+              padding: '6px 14px',
+              borderRadius: '8px',
+              border: 'none',
+              background: demoMode ? 'var(--accent)' : 'var(--success)',
+              color: demoMode ? '#0a0a0f' : '#0a0a0f',
+              fontSize: '0.78rem',
+              fontWeight: 700,
+              cursor: isActive ? 'not-allowed' : 'pointer',
+              whiteSpace: 'nowrap',
+              fontFamily: 'var(--font-body)',
+            }}
+          >
+            {demoMode ? '✦ Demo Mode' : '◉ Live Mode'}
+          </button>
+          <span style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>
+            {demoMode
+              ? 'Simulates a meeting with realistic transcript — no Google Meet needed'
+              : 'Connects to real Google Meet via authenticated Chrome bot'}
+          </span>
+        </div>
 
         {/* Error */}
         {error && (
-          <div className="error-msg" style={{
-            padding: '12px 16px',
-            background: 'rgba(255, 82, 82, 0.1)',
-            border: '1px solid rgba(255, 82, 82, 0.2)',
-            borderRadius: '8px',
-            color: '#ff5252',
-            fontSize: '0.85rem',
-            marginBottom: '16px',
-          }}>
+          <div className="error-msg" style={{ marginBottom: '16px' }}>
             ⚠️ {error}
           </div>
         )}
 
-        {/* Status */}
-        {status !== 'idle' && (
+        {/* Golden Orb — Listening State */}
+        {isListening && (
+          <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+            <div className="golden-orb"></div>
+            <p style={{
+              color: 'var(--accent-light)',
+              fontSize: '0.85rem',
+              fontFamily: 'var(--font-heading)',
+              fontWeight: 500,
+              letterSpacing: '0.05em',
+              marginTop: '12px',
+            }}>
+              Listening...
+            </p>
+          </div>
+        )}
+
+        {/* Status (non-listening states) */}
+        {status !== 'idle' && !isListening && (
           <div style={{
             display: 'flex',
             alignItems: 'center',
             gap: '12px',
             marginBottom: '24px',
             padding: '16px',
-            background: 'rgba(255,255,255,0.02)',
+            background: 'rgba(201, 168, 76, 0.03)',
             borderRadius: '12px',
-            border: '1px solid rgba(255,255,255,0.06)',
+            border: '1px solid var(--border)',
           }}>
             <StatusIndicator status={status} />
             <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-              {status === 'launching' && 'Launching Chrome...'}
-              {status === 'navigating' && 'Navigating to Google Meet...'}
-              {status === 'waiting-for-signin' && '🔐 Sign into Google in the Chrome window that opened...'}
-              {status === 'joining' && 'Bot is joining the meeting...'}
-              {status === 'listening' && 'Bot is in the meeting, capturing transcript...'}
-              {status === 'summarizing' && 'Meeting ended. Generating AI summary...'}
-              {status === 'done' && 'Summary ready! Redirecting...'}
-              {status === 'error' && 'Something went wrong.'}
+              {status === 'launching' && 'Conjuring the Scribe...'}
+              {status === 'navigating' && 'Traversing to the gathering...'}
+              {status === 'waiting-for-signin' && '🔐 Authenticating identity...'}
+              {status === 'joining' && 'Seeking entry to the chamber...'}
+              {status === 'summarizing' && 'Distilling wisdom from the discourse...'}
+              {status === 'done' && 'Inscriptions complete. Redirecting...'}
+              {status === 'error' && 'The ritual was disrupted.'}
             </span>
           </div>
         )}
@@ -217,12 +211,14 @@ export default function NewSession() {
         {transcript.length > 0 && (
           <div>
             <h3 style={{
-              fontSize: '0.9rem',
+              fontFamily: 'var(--font-heading)',
+              fontSize: '1rem',
               fontWeight: 600,
-              color: 'var(--text-secondary)',
+              color: 'var(--accent-light)',
               marginBottom: '12px',
+              letterSpacing: '0.03em',
             }}>
-              📝 Live Transcript
+              ✦ Live Transcript
             </h3>
             <div className="transcript-feed">
               {transcript.map((line, i) => (
