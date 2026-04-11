@@ -30,6 +30,11 @@ async function joinMeet(meetUrl, callbacks = {}) {
     if (!fs.existsSync('public')) fs.mkdirSync('public', { recursive: true });
 
     browser = await puppeteer.launch({
+      // ── IDENTITY PERSISTENCE ──
+      // Mount the authenticated Chrome profile directly. This avoids "Browser may not be secure" 
+      // login blocks and puts the bot straight into the "Confirmed Users" queue.
+      userDataDir: path.join(__dirname, 'data', 'chrome-profile'),
+      
       // Run headful when a virtual display is available (Xvfb on Render)
       // Headful mode bypasses Google's headless detection heuristics
       headless: hasDisplay ? false : 'new',
@@ -95,40 +100,7 @@ async function joinMeet(meetUrl, callbacks = {}) {
     
     await page.setViewport({ width: 1920, height: 1080 });
 
-    // ── Load Google session cookies (critical for cloud deployment) ───────
-    let cookiesLoaded = false;
-    try {
-      let cookies = null;
-
-      // Priority 1: GOOGLE_COOKIES env var (for Render)
-      if (process.env.GOOGLE_COOKIES) {
-        cookies = JSON.parse(process.env.GOOGLE_COOKIES);
-        console.log('[Bot] Loading cookies from GOOGLE_COOKIES env var');
-      }
-
-      // Priority 2: local file (for development)
-      if (!cookies) {
-        const cookiePath = path.join(__dirname, 'google-cookies.json');
-        if (fs.existsSync(cookiePath)) {
-          cookies = JSON.parse(fs.readFileSync(cookiePath, 'utf8'));
-          console.log('[Bot] Loading cookies from google-cookies.json');
-        }
-      }
-
-      if (cookies && cookies.length > 0) {
-        // Must be on a google domain before setting cookies so Chrome doesn't throw them out
-        await page.goto('https://google.com', { waitUntil: 'domcontentloaded' });
-        await page.setCookie(...cookies);
-        cookiesLoaded = true;
-        console.log(`[Bot] ✅ Loaded ${cookies.length} Google session cookies`);
-      } else {
-        console.log('[Bot] ⚠️  No Google cookies found — joining as anonymous guest');
-      }
-    } catch (e) {
-      console.error('[Bot] Cookie loading error:', e.message);
-    }
-
-    // ── Navigate ─────────────────────────────────────────────────────────
+    // ── Navigate smoothly as an authenticated user ───────────────────────
     emit('status', 'navigating');
     await page.goto(meetUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
     await page.screenshot({ path: 'public/debug-after-nav.png' });

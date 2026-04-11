@@ -1,6 +1,12 @@
 node_modules/
 .env
-data/
 *.log
 google-cookies.json
 venv/
+
+# Ignore specific data folders so they don't bloat the repo
+# But deliberately DO NOT ignore data/chrome-profile/ so the bot stays authenticated!
+data/transcripts/
+data/summaries/
+data/debug/
+data/python-chrome-profile/
