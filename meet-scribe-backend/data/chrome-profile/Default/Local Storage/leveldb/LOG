@@ -1,3 +1,2 @@
-2026/04/02-14:54:00.708 6ec968 Reusing MANIFEST /Users/taniagarwal/Downloads/Project/meet-scribe-backend/data/chrome-profile/Default/Local Storage/leveldb/MANIFEST-000001
-2026/04/02-14:54:00.713 6ec968 Recovering log #3
-2026/04/02-14:54:00.713 6ec968 Reusing old log /Users/taniagarwal/Downloads/Project/meet-scribe-backend/data/chrome-profile/Default/Local Storage/leveldb/000003.log 
+2026/04/11-18:16:52.560 975315 Creating DB /Users/taniagarwal/Downloads/Project/meet-scribe-backend/data/chrome-profile/Default/Local Storage/leveldb since it was missing.
+2026/04/11-18:16:52.565 975315 Reusing MANIFEST /Users/taniagarwal/Downloads/Project/meet-scribe-backend/data/chrome-profile/Default/Local Storage/leveldb/MANIFEST-000001

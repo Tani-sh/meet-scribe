@@ -1,3 +1,2 @@
-2026/04/02-14:54:01.933 6ec920 Reusing MANIFEST /Users/taniagarwal/Downloads/Project/meet-scribe-backend/data/chrome-profile/Default/shared_proto_db/MANIFEST-000001
-2026/04/02-14:54:01.935 6ec920 Recovering log #3
-2026/04/02-14:54:01.937 6ec920 Reusing old log /Users/taniagarwal/Downloads/Project/meet-scribe-backend/data/chrome-profile/Default/shared_proto_db/000003.log 
+2026/04/11-18:16:53.660 9752d2 Creating DB /Users/taniagarwal/Downloads/Project/meet-scribe-backend/data/chrome-profile/Default/shared_proto_db since it was missing.
+2026/04/11-18:16:53.664 9752d2 Reusing MANIFEST /Users/taniagarwal/Downloads/Project/meet-scribe-backend/data/chrome-profile/Default/shared_proto_db/MANIFEST-000001

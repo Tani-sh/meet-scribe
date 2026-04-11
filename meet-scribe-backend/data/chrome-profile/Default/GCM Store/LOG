@@ -1,3 +1,2 @@
-2026/04/02-14:54:12.571 6ec90b Reusing MANIFEST /Users/taniagarwal/Downloads/Project/meet-scribe-backend/data/chrome-profile/Default/GCM Store/MANIFEST-000001
-2026/04/02-14:54:12.571 6ec90b Recovering log #3
-2026/04/02-14:54:12.571 6ec90b Reusing old log /Users/taniagarwal/Downloads/Project/meet-scribe-backend/data/chrome-profile/Default/GCM Store/000003.log 
+2026/04/11-18:16:56.510 9752c0 Creating DB /Users/taniagarwal/Downloads/Project/meet-scribe-backend/data/chrome-profile/Default/GCM Store since it was missing.
+2026/04/11-18:16:56.533 9752c0 Reusing MANIFEST /Users/taniagarwal/Downloads/Project/meet-scribe-backend/data/chrome-profile/Default/GCM Store/MANIFEST-000001

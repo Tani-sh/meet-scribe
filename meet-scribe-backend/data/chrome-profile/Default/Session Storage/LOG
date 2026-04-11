@@ -1,3 +1,2 @@
-2026/04/02-14:54:01.093 6ec968 Reusing MANIFEST /Users/taniagarwal/Downloads/Project/meet-scribe-backend/data/chrome-profile/Default/Session Storage/MANIFEST-000001
-2026/04/02-14:54:01.094 6ec968 Recovering log #3
-2026/04/02-14:54:01.095 6ec968 Reusing old log /Users/taniagarwal/Downloads/Project/meet-scribe-backend/data/chrome-profile/Default/Session Storage/000003.log 
+2026/04/11-18:16:53.171 975315 Creating DB /Users/taniagarwal/Downloads/Project/meet-scribe-backend/data/chrome-profile/Default/Session Storage since it was missing.
+2026/04/11-18:16:53.179 975315 Reusing MANIFEST /Users/taniagarwal/Downloads/Project/meet-scribe-backend/data/chrome-profile/Default/Session Storage/MANIFEST-000001

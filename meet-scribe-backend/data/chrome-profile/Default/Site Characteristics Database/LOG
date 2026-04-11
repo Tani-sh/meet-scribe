@@ -1,3 +1,2 @@
-2026/04/02-14:54:00.655 6ec91f Reusing MANIFEST /Users/taniagarwal/Downloads/Project/meet-scribe-backend/data/chrome-profile/Default/Site Characteristics Database/MANIFEST-000001
-2026/04/02-14:54:00.660 6ec91f Recovering log #3
-2026/04/02-14:54:00.661 6ec91f Reusing old log /Users/taniagarwal/Downloads/Project/meet-scribe-backend/data/chrome-profile/Default/Site Characteristics Database/000003.log 
+2026/04/11-18:16:52.494 9752cf Creating DB /Users/taniagarwal/Downloads/Project/meet-scribe-backend/data/chrome-profile/Default/Site Characteristics Database since it was missing.
+2026/04/11-18:16:52.519 9752cf Reusing MANIFEST /Users/taniagarwal/Downloads/Project/meet-scribe-backend/data/chrome-profile/Default/Site Characteristics Database/MANIFEST-000001

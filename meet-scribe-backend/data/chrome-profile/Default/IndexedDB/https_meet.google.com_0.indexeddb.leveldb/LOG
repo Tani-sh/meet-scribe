@@ -1,3 +1,2 @@
-2026/04/02-14:54:07.980 6ec90a Reusing MANIFEST /Users/taniagarwal/Downloads/Project/meet-scribe-backend/data/chrome-profile/Default/IndexedDB/https_meet.google.com_0.indexeddb.leveldb/MANIFEST-000001
-2026/04/02-14:54:07.980 6ec90a Recovering log #3
-2026/04/02-14:54:07.981 6ec90a Reusing old log /Users/taniagarwal/Downloads/Project/meet-scribe-backend/data/chrome-profile/Default/IndexedDB/https_meet.google.com_0.indexeddb.leveldb/000003.log 
+2026/04/11-18:17:43.228 9752bd Creating DB /Users/taniagarwal/Downloads/Project/meet-scribe-backend/data/chrome-profile/Default/IndexedDB/https_meet.google.com_0.indexeddb.leveldb since it was missing.
+2026/04/11-18:17:43.234 9752bd Reusing MANIFEST /Users/taniagarwal/Downloads/Project/meet-scribe-backend/data/chrome-profile/Default/IndexedDB/https_meet.google.com_0.indexeddb.leveldb/MANIFEST-000001
