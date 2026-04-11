@@ -10,3 +10,15 @@ data/transcripts/
 data/summaries/
 data/debug/
 data/python-chrome-profile/
+
+# Chrome runtime lock files — these MUST NOT be deployed to Render
+# They cause "profile appears to be in use by another Chromium process" crashes
+data/chrome-profile/SingletonLock
+data/chrome-profile/SingletonCookie
+data/chrome-profile/SingletonSocket
+data/chrome-profile/DevToolsActivePort
+data/chrome-profile/Crashpad/
+data/chrome-profile/**/Cache/
+data/chrome-profile/**/GPUCache/
+data/chrome-profile/**/Code Cache/
+data/chrome-profile/**/Service Worker/
