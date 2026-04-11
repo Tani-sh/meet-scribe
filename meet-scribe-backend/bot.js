@@ -10,7 +10,8 @@ puppeteer.use(StealthPlugin());
 async function joinMeet(meetUrl, callbacks = {}) {
   const { onStatus, onTranscript, onError, onEnd } = callbacks;
 
-  const isServer = process.env.NODE_ENV === 'production' || process.platform === 'linux';
+  // Use headful if DISPLAY is set (Xvfb on Render) — avoids headless detection heuristics
+  const hasDisplay = !!process.env.DISPLAY;
   const execPath = process.env.PUPPETEER_EXECUTABLE_PATH || undefined;
 
   let browser;
@@ -29,7 +30,9 @@ async function joinMeet(meetUrl, callbacks = {}) {
     if (!fs.existsSync('public')) fs.mkdirSync('public', { recursive: true });
 
     browser = await puppeteer.launch({
-      headless: 'new',
+      // Run headful when a virtual display is available (Xvfb on Render)
+      // Headful mode bypasses Google's headless detection heuristics
+      headless: hasDisplay ? false : 'new',
       executablePath: execPath,
       args: [
         '--no-sandbox',
@@ -38,11 +41,16 @@ async function joinMeet(meetUrl, callbacks = {}) {
         '--use-fake-ui-for-media-stream',
         '--use-fake-device-for-media-stream',
         '--disable-gpu',
+        // Critical evasion: disable the AutomationControlled flag that Google detects
+        '--disable-blink-features=AutomationControlled',
+        '--disable-infobars',
         '--js-flags=--max-old-space-size=256',
         '--mute-audio',
-        '--window-size=1280,720',
+        // Realistic 1080p viewport — 0x0 or tiny sizes are instant bot flags
+        '--window-size=1920,1080',
       ],
     });
+    console.log(`[Bot] Browser launched in ${hasDisplay ? 'headful (Xvfb virtual display)' : 'headless'} mode.`);
     
     // --- RAM SAVER: Kill zombie Chrome processes ---
     const cleanup = async () => {
@@ -85,7 +93,7 @@ async function joinMeet(meetUrl, callbacks = {}) {
       'Accept-Language': 'en-US,en;q=0.9',
     });
     
-    await page.setViewport({ width: 1280, height: 720 });
+    await page.setViewport({ width: 1920, height: 1080 });
 
     // ── Load Google session cookies (critical for cloud deployment) ───────
     let cookiesLoaded = false;
@@ -282,51 +290,88 @@ async function joinMeet(meetUrl, callbacks = {}) {
       });
     } catch (e) {}
 
-    // ── Expose callback to receive captions from the page context ────────
+    // ── Expose callbacks to receive captions and flush events ────────────
     await page.exposeFunction('__emitCaption', (text) => {
       emit('transcript', text);
     });
 
-    // ── Inject caption scraper ───────────────────────────────────────────
+    // ── Inject MutationObserver caption scraper ───────────────────────────
+    // Uses the MutationObserver API (not deprecated setInterval polling).
+    // Implements stateful deduplication to handle Google Meet's real-time
+    // caption refinement and a Flush+Clear pattern to prevent memory leaks.
     await page.evaluate(() => {
-      let lastCaption = '';
+      // --- State management ---
+      let speakerBuffer = {};   // { speakerName: latestText } — collapses refinements
+      let finalizedLog = [];    // finalized segments ready to flush
+      let lastSpeaker = null;
+
+      const BLOCKLIST = ['caption settings', 'jump to', 'afrikaans'];
+
+      // Locate the caption root — stable selector chain
+      const getCaptionRoot = () =>
+        document.querySelector('[jsname="tgaKEf"], [data-message-text], .iTTPOb, [class*="caption"]');
+
+      // Deduplicate: collapse Google's real-time refinements per speaker
+      const handleMutation = () => {
+        const root = getCaptionRoot();
+        if (!root) return;
+
+        // Google Meet renders each speaker in a separate container row
+        // Try to get speaker name + text; fall back to raw text
+        const speakerEl = root.querySelector('[class*="speaker"], [class*="name"], [jsname="r4nke"]');
+        const speaker = speakerEl ? speakerEl.innerText.trim() : 'Speaker';
+        const fullText = root.innerText.trim();
+        const text = fullText.replace(speakerEl?.innerText || '', '').trim();
+
+        if (!text || BLOCKLIST.some(b => text.toLowerCase().includes(b))) return;
+
+        // Speaker changed: finalize previous speaker's buffer
+        if (lastSpeaker && lastSpeaker !== speaker && speakerBuffer[lastSpeaker]) {
+          finalizedLog.push({ speaker: lastSpeaker, text: speakerBuffer[lastSpeaker] });
+          delete speakerBuffer[lastSpeaker];
+        }
+
+        // Update the rolling buffer for the current speaker (collapses refinements)
+        speakerBuffer[speaker] = text;
+        lastSpeaker = speaker;
+      };
+
+      // Flush finalized segments to the Node.js backend every 15 seconds
+      // This prevents the browser tab from accumulating unbounded memory
       setInterval(() => {
-        try {
-          const container = document.querySelector(
-            '[jsname="tgaKEf"], [data-message-text], .iTTPOb, [class*="caption"]'
-          );
-          if (!container || !container.innerText) return;
+        // Finalize current speaker's buffer before flushing
+        if (lastSpeaker && speakerBuffer[lastSpeaker]) {
+          finalizedLog.push({ speaker: lastSpeaker, text: speakerBuffer[lastSpeaker] });
+          delete speakerBuffer[lastSpeaker];
+          lastSpeaker = null;
+        }
 
-          const current = container.innerText.trim();
-          if (!current || current === lastCaption) return;
+        if (finalizedLog.length === 0) return;
 
-          // Naive suffix-overlap diff
-          let added = current;
-          for (
-            let i = Math.min(lastCaption.length, current.length);
-            i > 0;
-            i--
-          ) {
-            if (
-              lastCaption.substring(lastCaption.length - i) ===
-              current.substring(0, i)
-            ) {
-              added = current.substring(i);
-              break;
-            }
-          }
-          added = added.trim();
-          if (
-            added &&
-            !added.includes('caption settings') &&
-            !added.includes('Jump to') &&
-            !added.includes('Afrikaans')
-          ) {
-            window.__emitCaption(added);
-          }
-          lastCaption = current;
-        } catch (e) {}
-      }, 1500);
+        // Emit each finalized segment and clear memory
+        for (const segment of finalizedLog) {
+          const line = `${segment.speaker}: ${segment.text}`;
+          window.__emitCaption(line);
+        }
+        finalizedLog = []; // Clear browser memory
+      }, 15000);
+
+      // Attach MutationObserver — fires instantly on DOM changes, no polling needed
+      const observer = new MutationObserver(handleMutation);
+
+      // Poll for caption root (it may not exist until captions are enabled)
+      const attachObserver = setInterval(() => {
+        const root = getCaptionRoot();
+        if (root) {
+          observer.observe(root, {
+            childList: true,
+            characterData: true,
+            subtree: true,
+          });
+          clearInterval(attachObserver);
+          console.log('[Bot] MutationObserver attached to caption container.');
+        }
+      }, 2000);
     });
 
     // ── Detect meeting end / kick ────────────────────────────────────────
