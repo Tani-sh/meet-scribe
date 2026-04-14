@@ -5,18 +5,19 @@ import StatusIndicator from '../components/StatusIndicator';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
-const SPEAKER_COLORS = ['#c9a84c', '#5ccf8d', '#e8b84c', '#5c9ccf', '#cf5c5c', '#948ae8', '#64dfc8', '#e88a5c'];
+const SPEAKER_COLORS = [
+  '#c9a84c', '#5ccf8d', '#5c9ccf', '#cf5c9c',
+  '#e88a5c', '#948ae8', '#64dfc8', '#e8b84c',
+];
 
 export default function SummaryView() {
   const { sessionId } = useParams();
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [showTranscript, setShowTranscript] = useState(false);
+  const [activeTab, setActiveTab] = useState('summary');
   const [copied, setCopied] = useState(false);
 
-  useEffect(() => {
-    fetchSession();
-  }, [sessionId]);
+  useEffect(() => { fetchSession(); }, [sessionId]);
 
   const fetchSession = async () => {
     try {
@@ -33,12 +34,27 @@ export default function SummaryView() {
     if (!session?.summary) return;
     await navigator.clipboard.writeText(session.summary);
     setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    setTimeout(() => setCopied(false), 2200);
   };
 
   const downloadSummary = () => {
     if (!session) return;
-    const content = `Meeting Summary\n${'='.repeat(50)}\n\nMeet URL: ${session.meetUrl}\nDate: ${new Date(session.createdAt).toLocaleString()}\n\n${session.summary || 'No summary available.'}\n\n${'='.repeat(50)}\nTranscript\n${'='.repeat(50)}\n\n${session.transcript || 'No transcript captured.'}`;
+    const content = [
+      'Meeting Summary',
+      '='.repeat(50),
+      '',
+      `Meet URL: ${session.meetUrl}`,
+      `Date: ${new Date(session.createdAt).toLocaleString()}`,
+      '',
+      session.summary || 'No summary available.',
+      '',
+      '='.repeat(50),
+      'Transcript',
+      '='.repeat(50),
+      '',
+      session.transcript || 'No transcript captured.',
+    ].join('\n');
+
     const blob = new Blob([content], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -60,22 +76,35 @@ export default function SummaryView() {
       .replace(/\[(.*?)\]/g, '<strong>[$1]</strong>');
   };
 
+  const formatDate = (date) =>
+    new Date(date).toLocaleString('en-US', {
+      weekday: 'short', month: 'short', day: 'numeric',
+      hour: '2-digit', minute: '2-digit',
+    });
+
+  /* ── Loading ── */
   if (loading) {
     return (
-      <div className="page-container">
-        <div className="spinner"></div>
+      <div className="page-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
+        <div>
+          <div className="spinner" />
+          <p style={{ color: 'var(--text-muted)', textAlign: 'center', marginTop: '8px', fontSize: '0.85rem' }}>
+            Loading session…
+          </p>
+        </div>
       </div>
     );
   }
 
+  /* ── Not found ── */
   if (!session) {
     return (
       <div className="page-container">
-        <div className="empty-state">
-          <div className="empty-icon">✦</div>
+        <div className="empty-state glass-card">
+          <span className="empty-icon">✦</span>
           <h3>Session not found</h3>
           <p>This session doesn't exist or has expired.</p>
-          <Link to="/" className="btn btn-primary" style={{ marginTop: '24px', display: 'inline-flex' }}>
+          <Link to="/" className="btn btn-primary" style={{ display: 'inline-flex', marginTop: '4px' }}>
             ← Back to Dashboard
           </Link>
         </div>
@@ -87,29 +116,31 @@ export default function SummaryView() {
 
   return (
     <div className="page-container">
+
+      {/* Header */}
       <div className="page-header">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '8px' }}>
-          <Link to="/" style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-            ← Dashboard
-          </Link>
+        <div className="breadcrumb">
+          <Link to="/"><span>⬡</span> Dashboard</Link>
+          <span className="breadcrumb-sep">›</span>
+          <span>Meeting Summary</span>
         </div>
         <h1>Meeting Inscriptions</h1>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginTop: '8px' }}>
-          <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', marginTop: '8px' }}>
+          <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem', fontFamily: 'var(--font-mono)' }}>
             ◈ {session.meetUrl}
           </span>
           <StatusIndicator status={session.status} />
         </div>
-        <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>
-          {new Date(session.createdAt).toLocaleString()}
+        <span style={{ color: 'var(--text-muted)', fontSize: '0.76rem', display: 'block', marginTop: '4px' }}>
+          {formatDate(session.createdAt)}
         </span>
       </div>
 
-      {/* Meeting Insights Cards */}
+      {/* Stats grid */}
       {analytics && (
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
           gap: '12px',
           marginBottom: '24px',
         }}>
@@ -125,7 +156,7 @@ export default function SummaryView() {
           </div>
           <div className="insight-card">
             <div className="insight-icon">✦</div>
-            <div className="insight-value">{analytics.totalWords.toLocaleString()}</div>
+            <div className="insight-value">{analytics.totalWords?.toLocaleString()}</div>
             <div className="insight-label">Words</div>
           </div>
           <div className="insight-card">
@@ -137,36 +168,38 @@ export default function SummaryView() {
       )}
 
       {/* Speaker Analytics */}
-      {analytics && analytics.speakers.length > 0 && (
-        <div className="glass-card" style={{ marginBottom: '24px' }}>
-          <h2 style={{ fontSize: '1.2rem', fontWeight: 600, color: 'var(--accent-light)', marginBottom: '20px', fontFamily: 'var(--font-heading)', letterSpacing: '0.03em' }}>
-            ✦ Speaker Analytics
-          </h2>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      {analytics?.speakers?.length > 0 && (
+        <div className="glass-card" style={{ marginBottom: '20px' }}>
+          <div className="action-row" style={{ marginBottom: 'var(--space-md)' }}>
+            <span className="action-row-title">✦ Speaker Analytics</span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
             {analytics.speakers.map((speaker, i) => (
-              <div key={speaker.name}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                  <span style={{ color: 'var(--text-primary)', fontWeight: 600, fontSize: '0.9rem' }}>
+              <div key={speaker.name} className="speaker-row">
+                <div className="speaker-meta">
+                  <div className="speaker-name">
+                    <div
+                      className="speaker-dot"
+                      style={{ background: SPEAKER_COLORS[i % SPEAKER_COLORS.length] }}
+                    />
                     {speaker.name}
-                  </span>
-                  <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>
-                    {speaker.lines} lines · {speaker.words} words · {speaker.percentage}%
-                  </span>
+                  </div>
+                  <div className="speaker-stats">
+                    <span className="speaker-stat-item">❖ {speaker.lines} lines</span>
+                    <span className="speaker-stat-item">⬡ {speaker.words} words</span>
+                    <span className="speaker-stat-item" style={{ color: SPEAKER_COLORS[i % SPEAKER_COLORS.length] }}>
+                      {speaker.percentage}%
+                    </span>
+                  </div>
                 </div>
-                <div style={{
-                  width: '100%',
-                  height: '8px',
-                  background: 'rgba(255,255,255,0.05)',
-                  borderRadius: '4px',
-                  overflow: 'hidden',
-                }}>
-                  <div style={{
-                    width: `${Math.max(speaker.percentage, 3)}%`,
-                    height: '100%',
-                    background: `linear-gradient(90deg, ${SPEAKER_COLORS[i % SPEAKER_COLORS.length]}, ${SPEAKER_COLORS[i % SPEAKER_COLORS.length]}88)`,
-                    borderRadius: '4px',
-                    transition: 'width 1s ease',
-                  }} />
+                <div className="speaker-bar-track">
+                  <div
+                    className="speaker-bar-fill"
+                    style={{
+                      width: `${Math.max(speaker.percentage, 3)}%`,
+                      background: `linear-gradient(90deg, ${SPEAKER_COLORS[i % SPEAKER_COLORS.length]}, ${SPEAKER_COLORS[i % SPEAKER_COLORS.length]}80)`,
+                    }}
+                  />
                 </div>
               </div>
             ))}
@@ -174,58 +207,85 @@ export default function SummaryView() {
         </div>
       )}
 
-      {/* Summary Card */}
-      <div className="glass-card" style={{ marginBottom: '24px', background: 'rgba(201, 168, 76, 0.03)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '8px' }}>
-          <h2 style={{ fontSize: '1.2rem', fontWeight: 600, color: 'var(--accent-light)', margin: 0, fontFamily: 'var(--font-heading)', letterSpacing: '0.03em' }}>
-            ✦ AI Summary
-          </h2>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <button className="btn btn-secondary btn-sm" onClick={copySummary}>
-              {copied ? '✅ Copied!' : '📋 Copy'}
-            </button>
-            <button className="btn btn-secondary btn-sm" onClick={downloadSummary}>
-              📥 Download
-            </button>
-          </div>
-        </div>
-
-        {session.summary ? (
-          <div
-            className="summary-content"
-            dangerouslySetInnerHTML={{ __html: renderSummaryHTML(session.summary) }}
-          />
-        ) : session.status === 'summarizing' ? (
-          <div style={{ textAlign: 'center', padding: '32px' }}>
-            <div className="spinner"></div>
-            <p style={{ color: 'var(--text-muted)', marginTop: '16px' }}>
-              Generating summary with Gemini AI...
-            </p>
-          </div>
-        ) : (
-          <p style={{ color: 'var(--text-muted)' }}>No summary available yet.</p>
+      {/* Tab bar */}
+      <div className="tab-bar" id="summary-tabs">
+        <button
+          id="tab-summary"
+          className={`tab-btn ${activeTab === 'summary' ? 'active' : ''}`}
+          onClick={() => setActiveTab('summary')}
+        >
+          ✦ AI Summary
+        </button>
+        {session.transcript && (
+          <button
+            id="tab-transcript"
+            className={`tab-btn ${activeTab === 'transcript' ? 'active' : ''}`}
+            onClick={() => setActiveTab('transcript')}
+          >
+            ❖ Transcript ({session.transcriptCount || 0})
+          </button>
         )}
       </div>
 
-      {/* Transcript Accordion */}
-      {session.transcript && (
-        <div className="accordion">
-          <button
-            className={`accordion-header ${showTranscript ? 'open' : ''}`}
-            onClick={() => setShowTranscript(!showTranscript)}
-          >
-            <span>❖ Raw Transcript ({session.transcriptCount || 0} entries)</span>
-            <span className="arrow">▼</span>
-          </button>
-          {showTranscript && (
-            <div className="accordion-body">
-              <div className="transcript-feed" style={{ maxHeight: '500px' }}>
-                {session.transcript.split('\n').map((line, i) => (
-                  <div key={i} className="transcript-line">{line || ' '}</div>
-                ))}
+      {/* Summary Tab */}
+      {activeTab === 'summary' && (
+        <div className="glass-card" id="summary-card">
+          <div className="action-row" style={{ marginBottom: 'var(--space-lg)' }}>
+            <span className="action-row-title">AI-Generated Summary</span>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                id="btn-copy-summary"
+                className={`btn btn-secondary btn-sm ${copied ? 'copied-anim' : ''}`}
+                onClick={copySummary}
+              >
+                {copied ? '✅ Copied!' : '📋 Copy'}
+              </button>
+              <button
+                id="btn-download-summary"
+                className="btn btn-secondary btn-sm"
+                onClick={downloadSummary}
+              >
+                📥 Download
+              </button>
+            </div>
+          </div>
+
+          {session.summary ? (
+            <div
+              className="summary-content"
+              id="summary-content"
+              dangerouslySetInnerHTML={{ __html: renderSummaryHTML(session.summary) }}
+            />
+          ) : session.status === 'summarizing' ? (
+            <div style={{ textAlign: 'center', padding: '36px' }}>
+              <div className="spinner" />
+              <p style={{ color: 'var(--text-muted)', marginTop: '12px', fontSize: '0.88rem' }}>
+                Generating summary with Gemini AI…
+              </p>
+              <div className="progress-bar" style={{ marginTop: '16px', maxWidth: '280px', margin: '16px auto 0' }}>
+                <div className="progress-fill" />
               </div>
             </div>
+          ) : (
+            <p style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>No summary available yet.</p>
           )}
+        </div>
+      )}
+
+      {/* Transcript Tab */}
+      {activeTab === 'transcript' && session.transcript && (
+        <div className="glass-card" id="transcript-card">
+          <div className="action-row" style={{ marginBottom: 'var(--space-md)' }}>
+            <span className="action-row-title">Raw Transcript</span>
+            <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+              {session.transcriptCount || 0} entries
+            </span>
+          </div>
+          <div className="transcript-feed" style={{ maxHeight: '520px' }}>
+            {session.transcript.split('\n').map((line, i) => (
+              <div key={i} className="transcript-line">{line || '\u00A0'}</div>
+            ))}
+          </div>
         </div>
       )}
 
@@ -233,11 +293,11 @@ export default function SummaryView() {
       {session.error && (
         <div className="glass-card" style={{
           marginTop: '24px',
-          borderColor: 'rgba(207, 92, 92, 0.2)',
-          background: 'rgba(207, 92, 92, 0.05)',
+          borderColor: 'rgba(207,92,92,0.25)',
+          background: 'rgba(207,92,92,0.04)',
         }}>
-          <h3 style={{ color: 'var(--error)', marginBottom: '8px' }}>⚠️ Error</h3>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>{session.error}</p>
+          <h3 style={{ color: 'var(--error)', marginBottom: '8px', fontSize: '1rem' }}>⚠️ Error Details</h3>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem' }}>{session.error}</p>
         </div>
       )}
     </div>

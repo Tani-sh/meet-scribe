@@ -36,16 +36,18 @@ export default function Dashboard() {
 
   return (
     <div className="page-container">
+
+      {/* Header */}
       <div className="page-header">
         <h1>Dashboard</h1>
-        <p>Your meeting sessions and AI-distilled summaries</p>
+        <p>Your meetings · AI-distilled summaries · Speaker analytics</p>
       </div>
 
-      {/* Stats Bar */}
+      {/* Stats */}
       {sessions.length > 0 && (
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
           gap: '12px',
           marginBottom: 'var(--space-xl)',
         }}>
@@ -62,7 +64,7 @@ export default function Dashboard() {
           <div className="insight-card">
             <div className="insight-icon">❖</div>
             <div className="insight-value">{totalTranscripts}</div>
-            <div className="insight-label">Total Lines</div>
+            <div className="insight-label">Transcript Lines</div>
           </div>
           <div className="insight-card">
             <div className="insight-icon">⬡</div>
@@ -72,44 +74,56 @@ export default function Dashboard() {
         </div>
       )}
 
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 'var(--space-lg)' }}>
-        <Link to="/new" className="btn btn-primary">
+      {/* Action row */}
+      <div className="action-row">
+        <div>
+          {sessions.length > 0 && (
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>
+              {sessions.length} session{sessions.length !== 1 ? 's' : ''} recorded
+            </p>
+          )}
+        </div>
+        <Link to="/new" id="btn-new-session" className="btn btn-primary">
           ✦ New Session
         </Link>
       </div>
 
+      {/* Session list */}
       {loading ? (
-        <div className="spinner"></div>
+        <div className="spinner" />
       ) : sessions.length === 0 ? (
-        <div className="empty-state">
-          <div className="empty-icon">✦</div>
-          <h3>No inscriptions yet</h3>
-          <p>Deploy your first AI Scribe to a gathering and watch the words illuminate.</p>
-          <Link to="/new" className="btn btn-primary" style={{ marginTop: '24px', display: 'inline-flex' }}>
+        <div className="empty-state glass-card" style={{ border: '1px solid var(--border)' }}>
+          <span className="empty-icon">✦</span>
+          <h3>No sessions yet</h3>
+          <p>Deploy your first AI Scribe to a meeting and watch the words emerge.</p>
+          <Link to="/new" id="btn-begin-session" className="btn btn-primary" style={{ display: 'inline-flex' }}>
             ✦ Begin First Session
           </Link>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          {sessions.map((session) => (
+        <div className="session-list" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          {sessions.map((session, idx) => (
             <Link
               key={session.id}
               to={`/summary/${session.id}`}
               style={{ textDecoration: 'none', color: 'inherit' }}
             >
-              <div className="session-card-enhanced">
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <span style={{ fontSize: '0.9rem', color: 'var(--text-primary)', fontWeight: 500 }}>
+              <div className="session-card-enhanced" style={{ animationDelay: `${idx * 0.06}s` }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                  <span style={{ fontSize: '0.88rem', color: 'var(--text-primary)', fontWeight: 600 }}>
                     ◈ {truncateUrl(session.meetUrl)}
                   </span>
-                  <div style={{ display: 'flex', gap: '16px', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                    <span>{formatDate(session.createdAt)}</span>
+                  <div style={{ display: 'flex', gap: '14px', fontSize: '0.76rem', color: 'var(--text-muted)' }}>
+                    <span>🕐 {formatDate(session.createdAt)}</span>
                     {session.transcriptCount > 0 && (
                       <span>❖ {session.transcriptCount} lines</span>
                     )}
                   </div>
                 </div>
-                <StatusIndicator status={session.status} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <StatusIndicator status={session.status} />
+                  <span style={{ color: 'var(--text-muted)', fontSize: '1rem', opacity: 0.4 }}>›</span>
+                </div>
               </div>
             </Link>
           ))}

@@ -12,26 +12,56 @@ export default function Navbar() {
 
   if (!user) return null;
 
+  // Derive initials for avatar
+  const initials = user.email
+    ? user.email.charAt(0).toUpperCase()
+    : '?';
+
   return (
     <nav className="navbar">
-      <div className="navbar-brand">
+      {/* Brand */}
+      <NavLink to="/" className="navbar-brand" style={{ textDecoration: 'none' }}>
         <span className="brand-icon">✦</span>
-        <span className="brand-text">AI Scribe</span>
+        <div>
+          <span className="brand-name">AI Scribe</span>
+          <span className="brand-sub">Meet Intelligence</span>
+        </div>
+      </NavLink>
+
+      {/* Nav Links */}
+      <div className="navbar-nav">
+        <NavLink
+          to="/"
+          end
+          id="nav-dashboard"
+          className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}
+        >
+          <span>⬡</span>
+          <span>Dashboard</span>
+        </NavLink>
+        <NavLink
+          to="/new"
+          id="nav-new-session"
+          className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}
+        >
+          <span>✦</span>
+          <span>New Session</span>
+        </NavLink>
       </div>
 
-      <div className="navbar-links">
-        <NavLink to="/" end className={({ isActive }) => isActive ? 'active' : ''}>
-          Dashboard
-        </NavLink>
-        <NavLink to="/new" className={({ isActive }) => isActive ? 'active' : ''}>
-          New Session
-        </NavLink>
-      </div>
-
-      <div className="navbar-user">
-        <span className="user-email">{user.email}</span>
-        <button className="btn btn-secondary btn-sm" onClick={handleLogout}>
-          Sign Out
+      {/* Right side */}
+      <div className="navbar-right">
+        <div className="user-pill">
+          <div className="user-avatar" title={user.email}>{initials}</div>
+          <span className="user-email-text">{user.email}</span>
+        </div>
+        <button
+          id="btn-logout"
+          className="btn btn-ghost btn-sm"
+          onClick={handleLogout}
+          title="Sign Out"
+        >
+          ↩ Sign Out
         </button>
       </div>
     </nav>
