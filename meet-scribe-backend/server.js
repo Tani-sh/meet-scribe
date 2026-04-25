@@ -102,8 +102,8 @@ app.post('/api/join', async (req, res) => {
   const sessionId = uuidv4();
   const session = sessionManager.createSession(sessionId, meetUrl);
 
-  // Emit initial status
-  io.to(sessionId).emit('status', { sessionId, status: 'joining' });
+  // Note: we intentionally do NOT emit here — the client hasn't subscribed yet.
+  // The socket 'subscribe' handler (server.js L57-60) will re-send current status on connect.
 
   // Launch bot in background (don't await — it's long-running)
   launchBot(sessionId, meetUrl, !!demo);
@@ -213,6 +213,7 @@ async function launchBot(sessionId, meetUrl, isDemo = false) {
     }, sessionId);
   } catch (err) {
     console.error(`[${sessionId}] Fatal error:`, err.message);
+    isBotActive = false;
     sessionManager.setError(sessionId, err.message);
     io.to(sessionId).emit('status', { sessionId, status: 'error', error: err.message });
   }
@@ -226,7 +227,7 @@ server.listen(PORT, () => {
 ║   🤖 Meet Scribe Backend                 ║
 ║   Running on http://localhost:${PORT}        ║
 ║                                           ║
-║   AI Engine: Gemini 3.1 FL Preview        ║
+║   AI Engine: Gemini 2.0 Flash Lite        ║
 ╚═══════════════════════════════════════════╝
   `);
 });

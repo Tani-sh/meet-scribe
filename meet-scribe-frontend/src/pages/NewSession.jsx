@@ -68,6 +68,7 @@ export default function NewSession() {
           if (data.status === 'error') {
             setError(data.error || 'An error occurred');
             setDeploying(false);
+            socketRef.current?.disconnect();
           }
         }
       });

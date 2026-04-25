@@ -50,7 +50,7 @@ apt-get install -y --no-install-recommends \
   dbus-x11 \
   fonts-liberation \
   fonts-noto \
-  libasound2 \
+  libasound2t64 \
   libatk-bridge2.0-0 \
   libatk1.0-0 \
   libcups2 \

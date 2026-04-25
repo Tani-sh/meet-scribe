@@ -4,29 +4,11 @@ import { auth } from '../firebase';
 
 const AuthContext = createContext(null);
 
-// Demo mode: permanently disabled for final real-world testing
-const isDemoMode = () => {
-  return false;
-};
-
-const DEMO_USER = {
-  email: 'demo@meetscribe.local',
-  uid: 'demo-user-001',
-  displayName: 'Demo User',
-};
-
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (isDemoMode()) {
-      // Auto-login in demo mode
-      setUser(DEMO_USER);
-      setLoading(false);
-      return;
-    }
-
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
       setLoading(false);
@@ -35,10 +17,6 @@ export function AuthProvider({ children }) {
   }, []);
 
   const logout = async () => {
-    if (isDemoMode()) {
-      setUser(null);
-      return;
-    }
     try {
       await signOut(auth);
     } catch (err) {
@@ -46,14 +24,8 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const demoLogin = (email) => {
-    if (isDemoMode()) {
-      setUser({ ...DEMO_USER, email });
-    }
-  };
-
   return (
-    <AuthContext.Provider value={{ user, loading, logout, isDemoMode: isDemoMode(), demoLogin }}>
+    <AuthContext.Provider value={{ user, loading, logout }}>
       {children}
     </AuthContext.Provider>
   );

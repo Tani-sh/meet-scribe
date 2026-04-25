@@ -19,6 +19,8 @@ async function joinMeet(meetUrl, callbacks = {}, sessionId = 'default') {
   const execPath = process.env.PUPPETEER_EXECUTABLE_PATH || undefined;
 
   let browser;
+  let watchdog = null;
+  let hardTimeoutId = null;
 
   const emit = (type, data) => {
     if (type === 'status') onStatus?.(data);
@@ -399,7 +401,7 @@ async function joinMeet(meetUrl, callbacks = {}, sessionId = 'default') {
     });
 
     // ── Detect meeting end / kick ─────────────────────────────────────────────
-    const watchdog = setInterval(async () => {
+    watchdog = setInterval(async () => {
       try {
         if (!browser.isConnected()) { clearInterval(watchdog); return; }
         const bodyText = await page.evaluate(() => document.body?.innerText || '');
@@ -418,7 +420,7 @@ async function joinMeet(meetUrl, callbacks = {}, sessionId = 'default') {
     }, 5000);
 
     // Hard timeout: 3 hours max
-    setTimeout(async () => {
+    hardTimeoutId = setTimeout(async () => {
       clearInterval(watchdog);
       try {
         emit('status', 'hard timeout reached (3h)');
@@ -428,6 +430,8 @@ async function joinMeet(meetUrl, callbacks = {}, sessionId = 'default') {
     }, 3 * 60 * 60 * 1000);
 
   } catch (e) {
+    if (watchdog) clearInterval(watchdog);
+    if (hardTimeoutId) clearTimeout(hardTimeoutId);
     emit('error', `Bot crash: ${e.message}`);
     try { if (browser) await browser.close(); } catch (_) {}
     onEnd?.();

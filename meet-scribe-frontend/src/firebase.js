@@ -1,15 +1,15 @@
-// Firebase configuration — replace with your Firebase project config
+// Firebase configuration — values loaded from environment variables
+// Copy .env.example to .env.local and fill in your Firebase project config
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDHJQHC2tQrUVsSURpD-HvRv_y5jz_pcXE",
-  authDomain: "meetscribe-45727.firebaseapp.com",
-  projectId: "meetscribe-45727",
-  storageBucket: "meetscribe-45727.firebasestorage.app",
-  messagingSenderId: "1031636948357",
-  appId: "1:1031636948357:web:dbb9b97860eff6c986e0ec",
-  measurementId: "G-8RCFDMWXV2"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
 const app = initializeApp(firebaseConfig);

@@ -69,7 +69,7 @@ export default function SummaryView() {
     return markdown
       .replace(/## (.*)/g, '<h2>$1</h2>')
       .replace(/^- (.*)/gm, '<li>$1</li>')
-      .replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>')
+      .replace(/(<li>[^]*?<\/li>\n?)+/g, '<ul>$&</ul>')
       .replace(/\n\n/g, '</p><p>')
       .replace(/\n/g, '<br>')
       .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
